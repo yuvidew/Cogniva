@@ -1,13 +1,15 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
-import prisma from "@/lib/db";
+import { useTRPC } from "@/trpc/client";
+import { useQuery } from "@tanstack/react-query";
 
-async function fetchData() {
-  // Simulate a fetch request
-  return await prisma.user.findMany();
-}
 
-export default async function Home() {
-  const data = await fetchData();
+
+export default function Home() {
+  const trpc = useTRPC();
+
+  const { data } = useQuery(trpc.getUsers.queryOptions());
 
   return (
     <div className="flex min-h-screen items-center  flex-col gap-4 justify-center bg-zinc-50 font-sans dark:bg-black">
