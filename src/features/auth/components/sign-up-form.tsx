@@ -17,6 +17,10 @@ import { useState } from "react";
 import z from "zod";
 import { EyeIcon, EyeOffIcon, SquareMousePointerIcon } from "lucide-react";
 import Link from "next/link";
+import { Spinner } from "@/components/ui/spinner";
+import { authClient } from '../../../lib/auth-client';
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 const SignUpSchema = z.object({
     name: z.string().min(1, { message: "Name is required" }),
@@ -30,14 +34,17 @@ const SignUpSchema = z.object({
     path: ["confirmPassword"],
 });
 
+
+type SignUpFormValue = z.infer<typeof SignUpSchema>
+
 export const SignupForm = ({
     className,
     ...props
 }: React.ComponentProps<"div">) => {
-
+    const router = useRouter();
     const [isEyeOpen, setIsEyeOpen] = useState(false);
     const [isConfirmEyeOpen, setIsConfirmEyeOpen] = useState(false);
-    const form = useForm<z.infer<typeof SignUpSchema>>({
+    const form = useForm<SignUpFormValue>({
         resolver: zodResolver(SignUpSchema),
         defaultValues: {
             name: "",
@@ -47,13 +54,35 @@ export const SignupForm = ({
         },
     });
 
+    const onSubmit = async (values : SignUpFormValue) => {
+        await authClient.signUp.email({
+            name: values.name,
+            email: values.email,
+            password: values.password,
+            callbackURL : "/"
+        },
+        {
+            onSuccess: () => {
+                toast.success("Sign up successful! Please check your email to verify your account.");
+                form.reset();
+                router.push("/");
+            },
+            onError: (err) => {
+                toast.error(err.error.message || "Sign up failed. Please try again.");
+                console.log(err);
+            }
+        })
+    };
+
+    const isPending = form.formState.isSubmitting;
+
     return (
         <div className={cn("flex flex-col gap-6", className)} {...props}>
             <Form {...form}>
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
-                        form.handleSubmit(() => { })();
+                        form.handleSubmit(onSubmit)();
                     }}
 
                     className="p-6"
@@ -62,7 +91,7 @@ export const SignupForm = ({
                         <div className="flex flex-col items-center text-center">
                             <Button size="icon"
                             ><SquareMousePointerIcon /></Button>
-                            <h1 className="text-2xl font-bold">Welcome back to <span className="text-primary">Cogniva</span></h1>
+                            <h1 className="text-2xl font-bold">Welcome to <span className="text-primary">Cogniva</span></h1>
                             <p className="text-muted-foreground text-balance">
                                 Create your account
                             </p>
@@ -166,12 +195,11 @@ export const SignupForm = ({
                             />
                         </div>
                         <Button
-                            // disabled={isPending}
+                            disabled={isPending}
                             type="submit"
                             className="w-full"
                         >
-                            {/* {isPending ? <Spinner /> : "Sign Up"} */}
-                            Sign Up
+                            {isPending ? <Spinner /> : "Sign Up"}
                         </Button>
                         <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t hidden">
                             <span className="bg-card text-muted-foreground relative z-10 px-2">

@@ -17,6 +17,10 @@ import { useState } from "react";
 import z from "zod";
 import { EyeIcon, EyeOffIcon, SquareMousePointerIcon } from "lucide-react";
 import Link from "next/link";
+import { Spinner } from "@/components/ui/spinner";
+import { authClient } from "@/lib/auth-client";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 const SignInSchema = z.object({
     email: z.string().email("Invalid email address"),
@@ -25,13 +29,15 @@ const SignInSchema = z.object({
         .min(6, { message: "Password must be at least 6 characters long" }),
 });
 
+type SignInFormValue = z.infer<typeof SignInSchema>
+
 export const SigninForm = ({
     className,
     ...props
 }: React.ComponentProps<"div">) => {
-
+    const router = useRouter();
     const [isEyeOpen, setIsEyeOpen] = useState(false);
-    const form = useForm<z.infer<typeof SignInSchema>>({
+    const form = useForm<SignInFormValue>({
         resolver: zodResolver(SignInSchema),
         defaultValues: {
             email: "",
@@ -39,13 +45,32 @@ export const SigninForm = ({
         },
     });
 
+    const onSubmit = async   (values: SignInFormValue) => {
+        await authClient.signIn.email({
+            email: values.email,
+            password: values.password,
+        }, {
+            onSuccess: () => {
+                toast.success("Sign in successful!");
+                form.reset();
+                router.push("/");
+            },
+            onError: (err) => {
+                toast.error(err.error.message || "Sign in failed. Please try again.");
+                console.log(err);
+            }
+        })
+    }
+
+    const isPending = form.formState.isSubmitting;
+
     return (
         <div className={cn("flex flex-col gap-6", className)} {...props}>
             <Form {...form}>
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
-                        form.handleSubmit(() => { })();
+                        form.handleSubmit(onSubmit)();
                     }}
 
                     className="p-6"
@@ -54,7 +79,7 @@ export const SigninForm = ({
                         <div className="flex flex-col items-center text-center">
                             <Button size="icon"
                             ><SquareMousePointerIcon /></Button>
-                            <h1 className="text-2xl font-bold">Welcome back to <span className="text-primary">Cogniva</span></h1>
+                            <h1 className="text-2xl font-bold">Welcome to <span className="text-primary">Cogniva</span></h1>
                             <p className="text-muted-foreground text-balance">
                                 Sign in to your account
                             </p>
@@ -109,12 +134,11 @@ export const SigninForm = ({
                             />
                         </div>
                         <Button
-                            // disabled={isPending}
+                            disabled={isPending}
                             type="submit"
                             className="w-full"
                         >
-                            {/* {isPending ? <Spinner /> : "Sign In"} */}
-                            Sign In
+                            {isPending ? <Spinner /> : "Sign In"}
                         </Button>
                         <div className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t hidden">
                             <span className="bg-card text-muted-foreground relative z-10 px-2">
