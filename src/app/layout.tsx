@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TRPCReactProvider } from "@/trpc/client";
+import { Toaster } from "@/components/ui/sonner";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -33,6 +34,8 @@ export default function RootLayout({
         >
           <TRPCReactProvider>
             {children}
+
+            <Toaster/>
           </TRPCReactProvider>
         </ThemeProvider>
       </body>
