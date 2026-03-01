@@ -9,7 +9,6 @@ import {
     SheetFooter,
     SheetHeader,
     SheetTitle,
-    SheetTrigger,
 } from "@/components/ui/sheet"
 import { useAgentForm } from "../zustand-state/use-agent-form";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,12 +27,12 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select } from "@/components/ui/select";
-import { ErrorFormat } from '../../../generated/prisma/internal/prismaNamespace';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AgentModalSelectItem } from "./agent-modal-select-item";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { useCreateAgent } from "@/features/common/hooks/use-agents";
+import { Spinner } from "@/components/ui/spinner";
 
 export const agentFormSchema = z.object({
     name: z
@@ -100,6 +99,8 @@ type AgentFormValue = z.infer<typeof agentFormSchema>
 export const AgentForm = () => {
     const { isOpen, openForm, closeForm } = useAgentForm();
 
+    const { mutate: createAgent, isPending } = useCreateAgent();
+
     const form = useForm<AgentFormValue>({
         resolver: zodResolver(agentFormSchema),
         defaultValues: {
@@ -114,6 +115,17 @@ export const AgentForm = () => {
             strictMode: false,
         },
     })
+
+    const isEmpty = form.watch("name") === "" || form.watch("description") === "" || form.watch("systemPrompt") === "" || form.watch("temperature") === undefined || form.watch("memoryEnabled") === undefined || form.watch("webSearchEnabled") === undefined || form.watch("fileUploadEnabled") === undefined || form.watch("strictMode") === undefined;
+
+    const onSubmit = (data: AgentFormValue) => {
+        createAgent(data, {
+            onSuccess: () => {
+                form.reset();
+                closeForm();
+            },
+        });
+    };
 
     return (
         <Sheet
@@ -131,7 +143,7 @@ export const AgentForm = () => {
                 </SheetHeader>
 
                 <Form {...form}>
-                    <form className="flex-1 overflow-hidden flex flex-col gap-6 min-h-0">
+                    <form className="flex-1 overflow-hidden flex flex-col gap-6 min-h-0" onSubmit={form.handleSubmit(onSubmit)}>
                         <ScrollArea className="h-0 flex-1 px-4">
                             <div className="flex flex-col gap-6 pb-5">
                                 <Card className="p-4">
@@ -236,7 +248,7 @@ export const AgentForm = () => {
                                 </Card>
 
                                 {/* Agent Modal */}
-                                
+
                                 <Card className="p-4">
                                     <CardHeader className="p-0 border-b  py-3 pb-2!">
                                         <div className="flex flex-col gap-2">
@@ -486,17 +498,28 @@ export const AgentForm = () => {
                         </ScrollArea>
 
                         {/* Cancel Button and Create Button */}
+                        <SheetFooter>
+                            <div className="flex items-center justify-end gap-3 px-4">
+                                <SheetClose asChild>
+                                    <Button type="button" variant="outline" onClick={() => form.reset()}>
+                                        Cancel
+                                    </Button>
+                                </SheetClose>
+                                <Button type="submit" disabled={isEmpty || isPending}>
+                                    {isPending ? (
+                                        <>
+                                            <Spinner />
+                                            Creating...
+                                        </>
+                                    ) : (
 
-                        <div className="flex items-center justify-end gap-3 px-4">
-                            <SheetClose asChild>
-                                <Button type = "button" variant="outline" onClick={() => form.reset()}>
-                                    Cancel
+                                        <>
+                                            <PlusIcon /> Create Agent
+                                        </>
+                                    )}
                                 </Button>
-                            </SheetClose>
-                            <Button >
-                                <PlusIcon/> Create Agent
-                            </Button>
-                        </div>
+                            </div>
+                        </SheetFooter>
                     </form>
                 </Form>
             </SheetContent>

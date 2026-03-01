@@ -13,6 +13,38 @@ datasource db {
   provider = "postgresql"
   // url      = env("DATABASE_URL")
 }
+
+enum AgentModelProvider {
+  openai
+  anthropic
+  google
+
+  @@map("agent_model_provider")
+}
+
+model Agent {
+  id                String             @id @default(cuid())
+  name              String             @db.VarChar(100)
+  description       String             @db.VarChar(300)
+  avatar            String?
+  systemPrompt      String             @db.Text
+  model             AgentModelProvider
+  temperature       Float
+  memoryEnabled     Boolean            @default(false)
+  webSearchEnabled  Boolean            @default(false)
+  fileUploadEnabled Boolean            @default(false)
+  strictMode        Boolean            @default(false)
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  ownerId           String
+  owner             User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+  @@index([ownerId])
+  @@map("agent")
+}
 model User {
   id            String    @id
   name          String
@@ -23,6 +55,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  agents        Agent[]
 
   @@unique([email])
   @@map("user")

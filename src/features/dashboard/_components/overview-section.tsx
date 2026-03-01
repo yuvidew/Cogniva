@@ -10,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { BadgeCheckIcon, ChartAreaIcon, type LucideIcon, MessageCircleIcon, ZapIcon } from "lucide-react";
 
-const checkTheLabel = (label: string, value: number): {
+const checkTheLabel = (label: string, value: number, extra?: number): {
     icon: LucideIcon;
     buttonVariant: string;
     title: string;
@@ -24,7 +24,7 @@ const checkTheLabel = (label: string, value: number): {
                 title: "Total Agents",
                 paragraph: (
                     <p className=" text-muted-foreground text-sm">
-                        <span className=" text-green-700">{value}</span>{" "}
+                        <span className=" text-green-700">{extra ?? 0}</span>{" "}
                         this month
                     </p>
                 ),
@@ -36,7 +36,7 @@ const checkTheLabel = (label: string, value: number): {
                 title: "Total Messages",
                 paragraph: (
                     <p className=" text-muted-foreground text-sm">
-                        of {value} limit
+                        of {extra ?? 0} limit
                     </p>
                 ),
             };
@@ -47,7 +47,7 @@ const checkTheLabel = (label: string, value: number): {
                 title: "Active Agents",
                 paragraph: (
                     <p className=" text-muted-foreground text-sm">
-                        Resets in <span className=" font-bold">{value} days{" "}</span>
+                        Resets in <span className=" font-bold">{extra ?? 0} days{" "}</span>
                     </p>
                 ),
             };
@@ -57,9 +57,7 @@ const checkTheLabel = (label: string, value: number): {
                 buttonVariant: "light-violet",
                 title: "Inactive Agents",
                 paragraph: (
-                    <p className=" text-sm text-primary">
-                        Upgrade
-                    </p>
+                    <></>
                 ),
             };
         default:
@@ -92,10 +90,11 @@ const checkButtonVariant = (label: string): string => {
 type CheckTheLabelType = {
     label: string;
     value: number;
+    extra?: number;
 };
 
-const OverViewCard = ({ label, value }: CheckTheLabelType) => {
-    const { icon: Icon, buttonVariant, title, paragraph } = checkTheLabel(label, value);
+const OverViewCard = ({ label, value, extra }: CheckTheLabelType) => {
+    const { icon: Icon, buttonVariant, title, paragraph } = checkTheLabel(label, value, extra);
 
     return (
         <Card className="group shadow-none px-2 py-4 gap-1 relative overflow-hidden hover:shadow-lg transition-shadow">
@@ -118,13 +117,22 @@ const OverViewCard = ({ label, value }: CheckTheLabelType) => {
     );
 };
 
-export const OverviewSection = () => {
+interface OverviewSectionProps {
+    total_agents: number;
+    total_messages: number;
+    active_agents: number;
+    inactive_agents: number;
+    agents_this_month: number;
+    days_until_reset: number;
+}
+
+export const OverviewSection = ({ total_agents, total_messages, active_agents, inactive_agents, agents_this_month, days_until_reset }: OverviewSectionProps) => {
     return (
         <section className=" grid lg:grid-cols-4 md:grid-cols-2 grid-cols-1 gap-5">
-            <OverViewCard label="total_agents" value={0} />
-            <OverViewCard label="total_messages" value={0} />
-            <OverViewCard label="active_agents" value={0} />
-            <OverViewCard label="inactive_agents" value={0} />
+            <OverViewCard label="total_agents" value={total_agents} extra={agents_this_month} />
+            <OverViewCard label="total_messages" value={total_messages} extra={0} />
+            <OverViewCard label="active_agents" value={active_agents} extra={days_until_reset} />
+            <OverViewCard label="inactive_agents" value={inactive_agents} />
         </section>
     );
 };
