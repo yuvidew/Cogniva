@@ -10,86 +10,47 @@ import {
     CardHeader,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MessageCircleIcon, PlusIcon } from "lucide-react";
+import { MessageCircleIcon, ArrowRightIcon, PlusIcon } from "lucide-react";
 import { AgentForm } from "./agent-form";
 import { useAgentForm } from "../zustand-state/use-agent-form";
+import Link from "next/link";
+import { AgentModelProvider } from "@/generated/prisma/enums";
+import type { Agent as PrismaAgent } from "@/generated/prisma/client";
 
-type Agent = {
-    name: string;
-    avatar: string;
-    status: "active" | "inactive";
-    description: string;
-    model: string;
-    modelColor: string;
+type Agent = Omit<PrismaAgent, "createdAt" | "updatedAt"> & {
+    createdAt: string | Date;
+    updatedAt: string | Date;
 };
 
-const agents: Agent[] = [
-    {
-        name: "Sales Assistant",
-        avatar: "",
-        status: "active",
-        description:
-            "Handles inbound sales queries, qualifies leads, and books demos automatically for your team.",
-        model: "GPT-4o",
-        modelColor: "bg-green-500",
-    },
-    {
-        name: "Content Writer",
-        avatar: "",
-        status: "active",
-        description:
-            "Generates blog posts, social media copy, and marketing content aligned to your brand voice.",
-        model: "Gemini Pro",
-        modelColor: "bg-blue-500",
-    },
-    {
-        name: "Support Bot",
-        avatar: "",
-        status: "active",
-        description:
-            "Resolves common customer issues, routes tickets, and reduces support load by up to 60%.",
-        model: "GPT-4o",
-        modelColor: "bg-green-500",
-    },
-    {
-        name: "Research Agent",
-        avatar: "",
-        status: "active",
-        description:
-            "Deep-dives into topics, compiles reports, and surfaces key insights from large document sets.",
-        model: "Claude 3.5",
-        modelColor: "bg-orange-500",
-    },
-    {
-        name: "Data Analyst",
-        avatar: "",
-        status: "active",
-        description:
-            "Interprets CSV data, creates visual summaries, and answers business questions in plain English.",
-        model: "Gemini Pro",
-        modelColor: "bg-blue-500",
-    },
-];
+const MODEL_DISPLAY: Record<AgentModelProvider, { label: string; color: string }> = {
+    openai: { label: "GPT-4o", color: "bg-green-500" },
+    anthropic: { label: "Claude 3.5", color: "bg-orange-500" },
+    google: { label: "Gemini Pro", color: "bg-blue-500" },
+};
+
+const getModelDisplay = (model: AgentModelProvider) =>
+    MODEL_DISPLAY[model] ?? { label: model, color: "bg-gray-500" };
 
 const AgentCard = ({ agent }: { agent: Agent }) => {
+    const modelDisplay = getModelDisplay(agent.model);
     return (
-        <Card className="shadow-none px-4 py-4 gap-3 justify-between hover:shadow-md transition-shadow">
+        <Card className="shadow-none px-4 py-4 gap-3 justify-between hover:shadow-md transition-shadow relative">
+            <Badge
+                variant="secondary"
+                className={`absolute top-3 right-3 text-[11px] px-2 py-0 ${agent.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+            >
+                <span className={`size-1.5 rounded-full ${agent.isActive ? "bg-green-500" : "bg-red-500"}`} />
+                {agent.isActive ? "Active" : "Inactive"}
+            </Badge>
             <CardHeader className="px-0 flex flex-row items-center gap-3">
                 <Avatar className="size-10">
-                    <AvatarImage src={agent.avatar} alt={agent.name} />
+                    <AvatarImage src={agent.avatar ?? undefined} alt={agent.name} />
                     <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                        {agent.name.slice(0, 2).toUpperCase()}
+                        {agent.avatar ? agent.avatar : agent.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col gap-1">
                     <h3 className="font-semibold text-sm leading-none">{agent.name}</h3>
-                    <Badge
-                        variant="secondary"
-                        className="bg-green-100 text-green-700 text-[11px] px-2 py-0"
-                    >
-                        <span className="size-1.5 rounded-full bg-green-500" />
-                        {agent.status === "active" ? "Active" : "Inactive"}
-                    </Badge>
                 </div>
             </CardHeader>
             <CardContent className="px-0 py-0">
@@ -100,8 +61,8 @@ const AgentCard = ({ agent }: { agent: Agent }) => {
             <Separator />
             <CardFooter className="px-0 py-0 flex items-center justify-between">
                 <Badge variant="secondary" className="gap-1.5 font-mono text-xs font-normal">
-                    <span className={`size-2 rounded-full ${agent.modelColor}`} />
-                    {agent.model}
+                    <span className={`size-2 rounded-full ${modelDisplay.color}`} />
+                    {modelDisplay.label}
                 </Badge>
                 <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50">
                     <MessageCircleIcon className="size-3.5" />
@@ -126,7 +87,11 @@ const NewAgentCard = () => {
     );
 };
 
-export const AgentCardSection = () => {
+interface AgentCardSectionProps {
+    agents : Agent[]
+}
+
+export const AgentCardSection = ({ agents }: AgentCardSectionProps) => {
     const { openForm} = useAgentForm();
     return (
         <>
@@ -138,16 +103,24 @@ export const AgentCardSection = () => {
                             {agents.length} agents active and ready
                         </p>
                     </div>
-                    <Button onClick={openForm} className="bg-blue-600 hover:bg-blue-700 text-white">
-                        <PlusIcon className="size-4" />
-                        Create New Agent
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" asChild>
+                            <Link href="/dashboard/agents">
+                                View More
+                                <ArrowRightIcon className="size-4" />
+                            </Link>
+                        </Button>
+                        <Button onClick={openForm} className="bg-blue-600 hover:bg-blue-700 text-white">
+                            <PlusIcon className="size-4" />
+                            Create New Agent
+                        </Button>
+                    </div>
                 </div>
                 <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
                     {agents.map((agent) => (
                         <AgentCard key={agent.name} agent={agent} />
                     ))}
-                    <NewAgentCard />
+                    {agents.length < 6 && <NewAgentCard />}
                 </div>
             </section>
 
