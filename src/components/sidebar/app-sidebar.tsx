@@ -124,10 +124,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarHeader>
             <SidebarContent>
                 <NavMain items={data.navMain.items} title={data.navMain.title} />
-                <NavSecondary items={data.navSecondary.items} title={data.navSecondary.title}  />
-                <PlanSection/>
+                <NavSecondary items={data.navSecondary.items} title={data.navSecondary.title} className="mt-auto" />
             </SidebarContent>
             <SidebarFooter>
+                <PlanSection/>
                 <NavUser  />
             </SidebarFooter>
         </Sidebar>

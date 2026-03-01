@@ -1,6 +1,5 @@
 "use client";
 
-import { useGetUser } from '@/hooks/use-get-user';
 import { OverviewSection } from './overview-section';
 import { Button } from '@/components/ui/button';
 import { ZapIcon } from 'lucide-react';
@@ -9,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { AgentCardSection } from './agent-card-section';
 
 export const DashboardView = () => {
-    const { data: user, isLoading } = useGetUser()
+
     return (
         <main className="flex  flex-col justify-center gap-8">
 
@@ -17,7 +16,8 @@ export const DashboardView = () => {
             <section className='flex lg:flex-row flex-col justify-between lg:gap-2 gap-4'>
                 <div className='flex flex-col gap-1 flex-1'>
                     <h1 className="text-3xl font-medium flex items-center gap-2">
-                        Welcome back, {isLoading ? <span className=' text-primary'> ... </span> : <span className=' text-primary'>{user?.[0].name || "User"}</span>}
+                        {/* TODO: replace with dynamic user name */}
+                        Welcome back, <span className=' text-primary'>User</span>
                     </h1>
                     <p className="text-muted-foreground">
                         Here's what's happening with your projects today.

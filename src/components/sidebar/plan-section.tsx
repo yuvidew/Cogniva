@@ -5,7 +5,7 @@ import { Progress } from '../ui/progress'
 
 export const PlanSection = () => {
     return (
-        <section className='p-4 border rounded-md mt-auto w-[94%]  mx-auto bg-[#2560e8]/5'>
+        <section className='p-4 border rounded-md w-full bg-[#2560e8]/5'>
             <div className='flex flex-col gap-4'>
                 <div className='flex items-center gap-2'>
                     <Button size = "icon-sm">

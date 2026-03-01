@@ -77,7 +77,7 @@ const checkTheLabel = (label: string, value: number): {
 const checkButtonVariant = (label: string): string => {
     switch (label) {
         case "total_agents":
-            return "bg-green-500";
+            return "bg-blue-500";
         case "total_messages":
             return "bg-yellow-500";
         case "active_agents":
