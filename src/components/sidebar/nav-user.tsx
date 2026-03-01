@@ -28,29 +28,35 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { useGetUser } from "@/hooks/use-get-user"
+// import { useGetUser } from "@/hooks/use-get-user"
 
 export function NavUser() {
   const { isMobile } = useSidebar();
 
-  const { data: users, isLoading } = useGetUser();
-  const user = users?.[0];
+  // const { data: users, isLoading } = useGetUser();
+  const user = {
+    name: "User",
+    email: "",
+    image: "",
+  };
 
-  if (isLoading) {
-    return (
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="lg" className="animate-pulse">
-            <div className="h-8 w-8 rounded-lg bg-muted" />
-            <div className="grid flex-1 gap-1">
-              <div className="h-3 w-20 rounded bg-muted" />
-              <div className="h-2 w-28 rounded bg-muted" />
-            </div>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
-    )
-  }
+  // if (isLoading) {
+  //   return (
+  //     <SidebarMenu>
+  //       <SidebarMenuItem>
+  //         <SidebarMenuButton size="lg" className="animate-pulse">
+  //           <div className="h-8 w-8 rounded-lg bg-muted" />
+  //           <div className="grid flex-1 gap-1">
+  //             <div className="h-3 w-20 rounded bg-muted" />
+  //             <div className="h-2 w-28 rounded bg-muted" />
+  //           </div>
+  //         </SidebarMenuButton>
+  //       </SidebarMenuItem>
+  //     </SidebarMenu>
+  //   )
+  // }
+
+
 
   return (
     <SidebarMenu>
@@ -62,9 +68,9 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
-                <AvatarImage src={user?.image ?? ""} alt={user?.name ?? ""} />
+                {/* <AvatarImage src={user?.image ?? ""} alt={user?.name ?? ""} /> */}
                 <AvatarFallback className="rounded-lg">
-                  {user?.name?.slice(0, 2).toUpperCase() ?? "CN"}
+                  { "CN"}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">

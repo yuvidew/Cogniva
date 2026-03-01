@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { MessageCircleIcon, PlusIcon } from "lucide-react";
+import { AgentForm } from "./agent-form";
+import { useAgentForm } from "../zustand-state/use-agent-form";
 
 type Agent = {
     name: string;
@@ -111,39 +113,46 @@ const AgentCard = ({ agent }: { agent: Agent }) => {
 };
 
 const NewAgentCard = () => {
+    const { openForm } = useAgentForm();
     return (
-        <Card className="group shadow-none border-dashed border-2 flex items-center justify-center cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors">
+        <Card onClick={openForm} className="group shadow-none border-dashed border-2 border-muted-foreground flex items-center justify-center cursor-pointer hover:border-primary/40 hover:bg-muted/30 transition-colors">
             <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <div className="size-12 rounded-full border-2 border-dashed border-primary/40 group-hover:border-primary flex items-center justify-center transition-colors">
-                    <PlusIcon className="size-5 text-primary/40 group-hover:text-primary group-hover:scale-110 transition-all" />
+                <div className="size-12 rounded-full border-2 border-dashed border-muted-foreground group-hover:border-primary flex items-center justify-center transition-colors">
+                    <PlusIcon className="size-5 text-muted-foreground group-hover:text-primary group-hover:scale-110 transition-all" />
                 </div>
-                <span className="text-sm font-medium text-primary/40 group-hover:text-primary transition-colors">New Agent</span>
+                <span className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">New Agent</span>
             </div>
         </Card>
     );
 };
 
 export const AgentCardSection = () => {
+    const { openForm} = useAgentForm();
     return (
-        <section className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-lg font-bold">My Agents</h2>
-                    <p className="text-sm text-muted-foreground">
-                        {agents.length} agents active and ready
-                    </p>
+        <>
+            <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-bold">My Agents</h2>
+                        <p className="text-sm text-muted-foreground">
+                            {agents.length} agents active and ready
+                        </p>
+                    </div>
+                    <Button onClick={openForm} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <PlusIcon className="size-4" />
+                        Create New Agent
+                    </Button>
                 </div>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                    <PlusIcon className="size-4" />
-                    Create New Agent
-                </Button>
-            </div>
-            <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
-                {agents.map((agent) => (
-                    <AgentCard key={agent.name} agent={agent} />
-                ))}
-                <NewAgentCard />
-            </div>
-        </section>
+                <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-5">
+                    {agents.map((agent) => (
+                        <AgentCard key={agent.name} agent={agent} />
+                    ))}
+                    <NewAgentCard />
+                </div>
+            </section>
+
+            {/* Agent form component */}
+            <AgentForm  />
+        </>
     );
 };
