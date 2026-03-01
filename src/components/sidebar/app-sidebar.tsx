@@ -31,6 +31,7 @@ import { Button } from "../ui/button";
 import { SquareMousePointer } from "lucide-react";
 import Link from "next/link";
 import { PlanSection } from "./plan-section";
+import { useHasActiveSubscription } from "@/features/subscription/hooks/use-subscription";
 
 const data = {
     user: {
@@ -103,6 +104,7 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+    const { hasActiveSubscription , isLoading, isError} = useHasActiveSubscription();
     return (
         <Sidebar collapsible="offcanvas" {...props}>
             <SidebarHeader>
@@ -127,7 +129,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <NavSecondary items={data.navSecondary.items} title={data.navSecondary.title} className="mt-auto" />
             </SidebarContent>
             <SidebarFooter>
-                <PlanSection/>
+                {!hasActiveSubscription && !isLoading && !isError && <PlanSection />}
                 <NavUser  />
             </SidebarFooter>
         </Sidebar>

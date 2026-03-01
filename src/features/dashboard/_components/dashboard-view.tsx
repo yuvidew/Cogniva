@@ -3,11 +3,15 @@
 import { OverviewSection } from './overview-section';
 import { Button } from '@/components/ui/button';
 import { ZapIcon } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
 import { Card } from '@/components/ui/card';
 import { AgentCardSection } from './agent-card-section';
+import { authClient } from '@/lib/auth-client';
+import { useHasActiveSubscription } from '@/features/subscription/hooks/use-subscription';
 
 export const DashboardView = () => {
+    const { hasActiveSubscription , isLoading, isError} = useHasActiveSubscription();
+    const { data: session } = authClient.useSession();
+    const user = session?.user;
 
     return (
         <main className="flex  flex-col justify-center gap-8">
@@ -17,7 +21,7 @@ export const DashboardView = () => {
                 <div className='flex flex-col gap-1 flex-1'>
                     <h1 className="text-3xl font-medium flex items-center gap-2">
                         {/* TODO: replace with dynamic user name */}
-                        Welcome back, <span className=' text-primary'>User</span>
+                        Welcome back, <span className=' text-primary'>{user?.name ?? "User"}</span>
                     </h1>
                     <p className="text-muted-foreground">
                         Here's what's happening with your projects today.
@@ -25,32 +29,27 @@ export const DashboardView = () => {
                 </div>
 
                 {/* start to your plan  */}
-                <Card className='p-4 border rounded-md mt-auto lg:w-[30%] w-full  mx-auto '>
-                    <div className='flex flex-col gap-4'>
-                        <div className='flex items-center gap-2'>
-                            <Button size="icon-sm">
-                                <ZapIcon />
+
+                {!hasActiveSubscription && !isLoading && !isError && (
+                    <Card className='p-4 border rounded-md mt-auto lg:w-[30%] w-full  mx-auto '>
+                        <div className='flex flex-col gap-4'>
+                            <div className='flex items-center gap-2'>
+                                <Button size="icon-sm">
+                                    <ZapIcon />
+                                </Button>
+
+                                <div className='flex flex-col '>
+                                    <h4 className=' font-medium'>Upgrade to Pro</h4>
+                                    <p className='text-xs text-muted-foreground'>Get more power with a Pro plan.</p>
+                                </div>
+                            </div>
+
+                            <Button onClick={() => authClient.checkout({ slug: "cognvia-pro" })} >
+                                Upgrade to Pro - $29.99
                             </Button>
-
-                            <div className='flex flex-col '>
-                                <h4 className=' font-medium'>Free plan</h4>
-                                <p className='text-xs text-muted-foreground'>Upgrade to more power </p>
-                            </div>
                         </div>
-
-                        <div className='flex flex-col gap-1'>
-                            <div className='flex items-center justify-between'>
-                                <p className='text-sm text-muted-foreground'>Messages left</p>
-                                <p className='text-sm font-medium text-primary'>20 / 100</p>
-                            </div>
-                            <Progress value={20} max={100} />
-                        </div>
-
-                        <Button>
-                            Upgrade to Pro - $10 / month
-                        </Button>
-                    </div>
-                </Card>
+                    </Card>
+                )}
                 {/* end to your plan  */}
             </section>
 

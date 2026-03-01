@@ -6,6 +6,7 @@ import {
   LogOut,
   Bell,
   UserCircle,
+  LogOutIcon,
 } from "lucide-react"
 
 import {
@@ -28,49 +29,56 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-// import { useGetUser } from "@/hooks/use-get-user"
+import { authClient } from "@/lib/auth-client"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Spinner } from "../ui/spinner"
 
 export function NavUser() {
   const { isMobile } = useSidebar();
+  const [isSignOutLoading, setIsSignOutLoading] = useState(false)
+  const [open, setOpen] = useState(false)
+  const router = useRouter()
 
-  // const { data: users, isLoading } = useGetUser();
-  const user = {
-    name: "User",
-    email: "",
-    image: "",
-  };
+  const { data: session } = authClient.useSession();
+  const user = session?.user;
 
-  // if (isLoading) {
-  //   return (
-  //     <SidebarMenu>
-  //       <SidebarMenuItem>
-  //         <SidebarMenuButton size="lg" className="animate-pulse">
-  //           <div className="h-8 w-8 rounded-lg bg-muted" />
-  //           <div className="grid flex-1 gap-1">
-  //             <div className="h-3 w-20 rounded bg-muted" />
-  //             <div className="h-2 w-28 rounded bg-muted" />
-  //           </div>
-  //         </SidebarMenuButton>
-  //       </SidebarMenuItem>
-  //     </SidebarMenu>
-  //   )
-  // }
+
+  const onSignOut = async () => {
+    setIsSignOutLoading(true)
+    try {
+
+      await authClient.signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            setOpen(false)
+            router.replace("/sign-in")
+          }
+        }
+      })
+    } catch {
+      setIsSignOutLoading(false)
+    } finally {
+      setIsSignOutLoading(false)
+    }
+  }
+
 
 
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        <DropdownMenu open={open} onOpenChange={setOpen}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
-                {/* <AvatarImage src={user?.image ?? ""} alt={user?.name ?? ""} /> */}
+                <AvatarImage src={user?.image ?? ""} alt={user?.name ?? ""} />
                 <AvatarFallback className="rounded-lg">
-                  { "CN"}
+                  {user?.name?.slice(0, 2).toUpperCase() ?? "CN"}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -106,23 +114,23 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); router.push("/profile"); setOpen(false); }}>
                 <UserCircle />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={async (e) => { e.preventDefault(); await authClient.customer.portal(); setOpen(false); }}>
                 <CreditCard />
                 Billing
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); router.push("/notifications"); setOpen(false); }}>
                 <Bell />
                 Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <LogOut />
-              Log out
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); onSignOut(); }} disabled={isSignOutLoading}>
+              {isSignOutLoading ? <Spinner className="text-primary" /> : <LogOutIcon className=" size-4" />}
+              <span>Sign out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
