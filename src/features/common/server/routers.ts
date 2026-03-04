@@ -63,10 +63,11 @@ export const agentRouter = createTRPCRouter({
                     .max(PAGINATION.MAX_PAGE_SIZE)
                     .default(PAGINATION.DEFAULT_PAGE_SIZE),
                 search: z.string().default(""),
+                filter: z.enum(["all", "active", "inactive"]).default("all"),
             })
         )
         .query(async ({ ctx, input }) => {
-            const { page, pageSize, search } = input;
+            const { page, pageSize, search, filter } = input;
 
             const [items, totalCount] = await Promise.all([
                 prisma.agent.findMany({
@@ -78,6 +79,8 @@ export const agentRouter = createTRPCRouter({
                             contains: search,
                             mode: "insensitive",
                         },
+                        ...(filter === "active" && { isActive: true }),
+                        ...(filter === "inactive" && { isActive: false }),
                     },
                     orderBy: {
                         createdAt: "desc",
@@ -90,6 +93,8 @@ export const agentRouter = createTRPCRouter({
                             contains: search,
                             mode: "insensitive",
                         },
+                        ...(filter === "active" && { isActive: true }),
+                        ...(filter === "inactive" && { isActive: false }),
                     },
                 }),
             ]);
