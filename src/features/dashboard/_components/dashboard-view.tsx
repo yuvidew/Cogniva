@@ -7,9 +7,9 @@ import { Card } from '@/components/ui/card';
 import { AgentCardSection } from './agent-card-section';
 import { authClient } from '@/lib/auth-client';
 import { useHasActiveSubscription } from '@/features/subscription/hooks/use-subscription';
-import { LoadingView } from '@/components/common/loading-view';
-import { ErrorView } from '@/components/common/error-view';
 import { useSuspenseDashboardData } from '../hooks/use-dashboard';
+import { LoadingView } from '@/components/entity-components/loading-view';
+import { ErrorView } from '@/components/entity-components/error-view';
 
 export const DashboardLoading = () => {
     return <LoadingView message='Loading Dashboard...' />

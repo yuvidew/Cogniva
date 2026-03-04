@@ -13,7 +13,7 @@ export const LoadingView = ({
     message,
 } : LoadingViewProps)=> {
     return (
-        <div className=" flex  flex-1 justify-center items-center h-full  flex-col gap-y-4">
+        <div className=" flex justify-center items-center h-full flex-1 flex-col gap-y-4">
             <Spinner className="text-primary size-6" />
 
             {!!message && <p className="text-sm text-muted-foreground">{message}</p>}
