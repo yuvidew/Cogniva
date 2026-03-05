@@ -34,14 +34,20 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Spinner } from "../ui/spinner"
 
-export function NavUser() {
+type InitialUser = {
+  name?: string | null
+  email?: string | null
+  image?: string | null
+}
+
+export function NavUser({ initialUser }: { initialUser?: InitialUser }) {
   const { isMobile } = useSidebar();
   const [isSignOutLoading, setIsSignOutLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const router = useRouter()
 
   const { data: session } = authClient.useSession();
-  const user = session?.user;
+  const user = session?.user ?? initialUser;
 
 
   const onSignOut = async () => {
@@ -73,6 +79,7 @@ export function NavUser() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
+              suppressHydrationWarning
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">

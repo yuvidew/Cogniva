@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { AgentModelProvider } from "@/generated/prisma/enums";
 import type { Agent as PrismaAgent } from "@/generated/prisma/client";
 import { MessageCircleIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type Agent = Omit<PrismaAgent, "createdAt" | "updatedAt"> & {
     createdAt: string | Date;
@@ -33,6 +34,9 @@ interface AgentCardProps {
 }
 export const AgentCard = ({ agent }: AgentCardProps) => {
     const modelDisplay = getModelDisplay(agent.model);
+
+    const navigate = useRouter();
+
     return (
         <Card className="shadow-none px-4 py-4 gap-3 justify-between hover:shadow-md transition-shadow relative">
             <Badge
@@ -64,7 +68,12 @@ export const AgentCard = ({ agent }: AgentCardProps) => {
                     <span className={`size-2 rounded-full ${modelDisplay.color}`} />
                     {modelDisplay.label}
                 </Badge>
-                <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50">
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                    onClick={() => navigate.push(`/agents/${agent.id}`)}
+                >
                     <MessageCircleIcon className="size-3.5" />
                     Open Chat
                 </Button>

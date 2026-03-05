@@ -103,7 +103,13 @@ const data = {
     ],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+type InitialUser = {
+    name?: string | null
+    email?: string | null
+    image?: string | null
+}
+
+export function AppSidebar({ initialUser, ...props }: React.ComponentProps<typeof Sidebar> & { initialUser?: InitialUser }) {
     const { hasActiveSubscription , isLoading, isError} = useHasActiveSubscription();
     return (
         <Sidebar collapsible="offcanvas" {...props}>
@@ -130,7 +136,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarContent>
             <SidebarFooter>
                 {!hasActiveSubscription && !isLoading && !isError && <PlanSection />}
-                <NavUser  />
+                <NavUser initialUser={initialUser} />
             </SidebarFooter>
         </Sidebar>
     );

@@ -9,7 +9,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 
 
 export default async function Home() {
-  await requireAuth();
+  const session = await requireAuth();
 
   await dashboardParamsLoader({});
   prefetchDashboardData();
@@ -19,7 +19,7 @@ export default async function Home() {
     <HydrateClient>
       <ErrorBoundary fallback={<DashboardError/>}>
         <Suspense fallback={<DashboardLoading />}>
-          <DashboardView />
+          <DashboardView initialUser={session.user} />
         </Suspense>
       </ErrorBoundary>
     </HydrateClient>

@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { usePathname } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { ModeToggle } from "../theme-toggle";
 
 const headerContent = () => {
@@ -23,6 +23,10 @@ const headerContent = () => {
 }
 
 export function SiteHeader() {
+    const {id} = useParams();
+
+    // TODO: show the agent name instead of "Documents" when the user is in the agent details page ("/agents/[id]")
+
     return (
         <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
             <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
