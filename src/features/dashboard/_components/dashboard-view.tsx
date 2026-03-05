@@ -11,6 +11,12 @@ import { useSuspenseDashboardData } from '../hooks/use-dashboard';
 import { LoadingView } from '@/components/entity-components/loading-view';
 import { ErrorView } from '@/components/entity-components/error-view';
 
+type InitialUser = {
+    name?: string | null
+    email?: string | null
+    image?: string | null
+}
+
 export const DashboardLoading = () => {
     return <LoadingView message='Loading Dashboard...' />
 };
@@ -19,13 +25,13 @@ export const DashboardError = () => {
     return <ErrorView message='Error loading Dashboard' />
 };
 
-export const DashboardView = () => {
+export const DashboardView = ({ initialUser }: { initialUser?: InitialUser }) => {
     const { hasActiveSubscription , isLoading, isError} = useHasActiveSubscription();
 
     const {data} = useSuspenseDashboardData()
     
     const { data: session } = authClient.useSession();
-    const user = session?.user;
+    const user = session?.user ?? initialUser;
 
     return (
         <main className="flex  flex-col justify-center gap-8">
