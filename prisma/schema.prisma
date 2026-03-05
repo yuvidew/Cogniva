@@ -40,6 +40,7 @@ model Agent {
 
   ownerId           String
   owner             User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  chats             Chat[]
 
   @@index([isActive])
   @@index([ownerId])
@@ -56,6 +57,9 @@ model User {
   sessions      Session[]
   accounts      Account[]
   agents        Agent[]
+  chats         Chat[]
+  chatMessages  ChatMessage[]
+  fileUploads   FileUpload[]
 
   @@unique([email])
   @@map("user")
@@ -107,4 +111,101 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// ─── Chat Enums ─────────────────────────────────────────────
+
+enum ChatStatus {
+  active
+  resolved
+  archived
+
+  @@map("chat_status")
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+
+  @@map("message_role")
+}
+
+enum FileUploadStatus {
+  uploading
+  completed
+  failed
+
+  @@map("file_upload_status")
+}
+
+// ─── Chat Models ────────────────────────────────────────────
+
+model Chat {
+  id        String     @id @default(cuid())
+  title     String     @db.VarChar(200)
+  status    ChatStatus @default(active)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  agentId   String
+  agent     Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  messages  ChatMessage[]
+
+  @@index([userId])
+  @@index([agentId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("chat")
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  content   String      @db.Text
+  role      MessageRole
+  createdAt DateTime    @default(now())
+
+  chatId    String
+  chat      Chat        @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  senderId  String?
+  sender    User?       @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  attachments FileUpload[]
+
+  @@index([chatId])
+  @@index([createdAt])
+  @@map("chat_message")
+}
+
+// ─── File Upload Model ──────────────────────────────────────
+
+model FileUpload {
+  id          String           @id @default(cuid())
+  fileName    String           @db.VarChar(255)
+  fileUrl     String
+  fileSize    Int
+  mimeType    String           @db.VarChar(100)
+  status      FileUploadStatus @default(completed)
+  createdAt   DateTime         @default(now())
+
+  uploaderId  String
+  uploader    User             @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  messageId   String?
+  message     ChatMessage?     @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([uploaderId])
+  @@index([messageId])
+  @@map("file_upload")
+}
+
+
+model Workflow {
+  id         String     @id @default(cuid())
+  name        String     @db.VarChar(100)
 }

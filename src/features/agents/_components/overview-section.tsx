@@ -1,11 +1,8 @@
 import Link from 'next/link'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
-import { ArrowRightIcon, BarChart3Icon, CalendarIcon, CheckCircle2Icon, CpuIcon, FileIcon, FileTextIcon, FolderOpenIcon, HashIcon, InfoIcon, MessageSquareIcon, ThermometerIcon, ZapIcon } from 'lucide-react'
-import { Progress } from '@/components/ui/progress'
+import { ArrowRightIcon, FileTextIcon, FolderOpenIcon, InfoIcon, MessageSquareIcon, ZapIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
 const knowledgeBaseFiles = [
@@ -23,130 +20,6 @@ export const OverViewSection = () => {
 
     return (
         <section className="flex flex-col gap-6">
-            {/* Agent Info Header */}
-            <Card className="p-5 shadow-none">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <Avatar className="size-14 rounded-xl">
-                            <AvatarImage src="" alt="Sales Assistant" />
-                            <AvatarFallback className="rounded-xl text-lg font-semibold bg-amber-100 text-amber-700">
-                                S
-                            </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col gap-1">
-                            <div className="flex items-baseline gap-2">
-                                <h2 className="text-xl font-bold">Sales</h2>
-                                <span className="text-lg italic text-muted-foreground">Assistant</span>
-                            </div>
-                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                <span className="flex items-center gap-1.5">
-                                    <span className="size-2 rounded-full bg-emerald-500" />
-                                    Online
-                                </span>
-                                <span className="flex items-center gap-1.5">
-                                    <CpuIcon className="size-3.5" />
-                                    Model: GPT-4o
-                                </span>
-                                <span className="flex items-center gap-1.5">
-                                    <CalendarIcon className="size-3.5" />
-                                    Created Jan 15, 2026
-                                </span>
-                                <span className="font-mono text-xs text-muted-foreground/70">
-                                    ID: agt_x82kp
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50  font-medium text-emerald-700">
-                            <span className="size-2 rounded-full bg-emerald-500 mr-1.5" />
-                            Active
-                        </Badge>
-                        <Badge variant="outline" className="rounded-full border-blue-200 bg-blue-50  font-mono font-medium text-blue-700">
-                            GPT-4o
-                        </Badge>
-                    </div>
-                </div>
-            </Card>
-
-            {/* Usage & Configuration */}
-            <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    <BarChart3Icon className="size-4" />
-                    Usage & Configuration
-                </div>
-                <div className="grid grid-cols-4 gap-4">
-                    {/* Messages Used */}
-                    <Card className="p-5 shadow-none relative overflow-hidden gap-0 hover:shadow-md transition-shadow">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500 rounded-b-full" />
-                        <div className="flex flex-col gap-3">
-
-                            <Button variant={"default"} size={"icon-sm"} className='bg-blue-50 hover:bg-blue-50'>
-                                <MessageSquareIcon className="size-4 text-blue-500" />
-                            </Button>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-bold">32</span>
-                                <span className="text-sm text-muted-foreground">/ 100</span>
-                            </div>
-                            <span className="text-sm font-medium text-muted-foreground">Messages Used</span>
-                            <Progress value={32} className="h-1.5" />
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <InfoIcon className="size-3" />
-                                Resets in 9 days
-                            </span>
-                        </div>
-                    </Card>
-
-                    {/* Files Uploaded */}
-                    <Card className="p-5 shadow-none relative overflow-hidden gap-0 hover:shadow-md transition-shadow">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500 rounded-b-full" />
-                        <div className="flex flex-col gap-3">
-                            
-                            <Button variant={"default"} size={"icon-sm"} className='bg-emerald-50 hover:bg-emerald-50'>
-                                <FileIcon className="size-4 text-emerald-500" />
-                            </Button>
-
-                            <span className="text-3xl font-bold">4</span>
-                            <span className="text-sm font-medium text-muted-foreground">Files Uploaded</span>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <CheckCircle2Icon className="size-3 text-emerald-500" />
-                                All indexed
-                            </span>
-                        </div>
-                    </Card>
-
-                    {/* Temperature */}
-                    <Card className="p-5 shadow-none relative overflow-hidden gap-0 hover:shadow-md transition-shadow">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500 rounded-b-full" />
-                        <div className="flex flex-col gap-3">
-                            <Button variant={"default"} size={"icon-sm"} className='bg-amber-50 hover:bg-amber-50'>
-                                <ThermometerIcon className="size-4 text-amber-500" />
-
-                            </Button>
-                            <span className="text-3xl font-bold">0.4</span>
-                            <span className="text-sm font-medium text-muted-foreground">Temperature</span>
-                            <span className="text-xs text-muted-foreground">~  Balanced precision</span>
-                        </div>
-                    </Card>
-
-                    {/* Max Tokens */}
-                    <Card className="p-5 shadow-none relative overflow-hidden gap-0 hover:shadow-md transition-shadow">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-purple-500 rounded-b-full" />
-                        <div className="flex flex-col gap-3">
-                            <Button variant={"default"} size={"icon-sm"} className='bg-purple-50 hover:bg-purple-50'>
-                                <HashIcon className="size-4 text-purple-500" />
-                            </Button>
-                            <span className="text-3xl font-bold">1,024</span>
-                            <span className="text-sm font-medium text-muted-foreground">Max Tokens</span>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                <InfoIcon className="size-3" />
-                                Per response
-                            </span>
-                        </div>
-                    </Card>
-                </div>
-            </div>
-
             {/* System Prompt + Knowledge Base */}
             <div className="grid grid-cols-2 gap-4">
                 {/* System Prompt */}

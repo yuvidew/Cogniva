@@ -1,7 +1,26 @@
 import { createTRPCRouter, premiumProcedure } from "@/trpc/init";
 import prisma from "@/lib/db";
+import z from "zod";
+import { inngest } from "@/inngest/client";
 
 export const dashboardRouter = createTRPCRouter({
+    getWorkflowStats: premiumProcedure.query(async ({ ctx }) => {
+        return await prisma.workflow.findMany();
+    }),
+    createWorkflow: premiumProcedure
+    .input(z.object({ name: z.string().min(1).max(100) }))
+    .mutation(async ({ input }) => {
+
+        await inngest.send({
+            name: "test/hello.world",
+            data: {
+                email: "yuvi@gmail.com",
+            },
+        });
+        
+        const { name } = input;
+        return {success : true, message : `Workflow '${name}' created successfully`};
+    }),
     getStats: premiumProcedure.query(async ({ ctx }) => {
         const ownerId = ctx.auth.user.id;
 

@@ -5,6 +5,9 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useParams, usePathname } from "next/navigation";
 import { ModeToggle } from "../theme-toggle";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/trpc/client";
+import { toast } from "sonner";
 
 const headerContent = () => {
     const pathname = usePathname()
@@ -24,6 +27,19 @@ const headerContent = () => {
 
 export function SiteHeader() {
     const {id} = useParams();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    const {data} = useQuery(trpc.dashboard.getWorkflowStats.queryOptions());
+
+    const {mutate, isPending} = useMutation(trpc.dashboard.createWorkflow.mutationOptions({
+        onSuccess: (data) => {
+            toast.success(data.message);
+            // queryClient.invalidateQueries(trpc.dashboard.getWorkflowStats.queryOptions())
+        }
+    }))
+
+
 
     // TODO: show the agent name instead of "Documents" when the user is in the agent details page ("/agents/[id]")
 
@@ -37,6 +53,11 @@ export function SiteHeader() {
                 />
                 <h1 className=" font-medium text-lg">{headerContent()}</h1>
                 <div className="ml-auto flex items-center gap-2">
+                    {data?.length ? `${data.length} Workflows` : "No Workflows"}
+
+                    <Button size="sm" onClick={() => mutate({name: `Workflow ${data?.length ? data.length + 1 : 1}`})} disabled={isPending}>
+                        {isPending ? "Creating..." : "Create Workflow"}
+                    </Button>
                     <ModeToggle/>
                 </div>
             </div>
