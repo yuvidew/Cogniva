@@ -1,22 +1,72 @@
-import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowRightIcon, FileTextIcon, FolderOpenIcon, InfoIcon, MessageSquareIcon, ZapIcon } from 'lucide-react'
+import { ArrowRightIcon, AlertCircleIcon, FileTextIcon, FolderOpenIcon, InfoIcon, MessageSquareIcon, ZapIcon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useAgentOverview } from '../hooks/use-agents'
 
-const knowledgeBaseFiles = [
-    { name: 'product-catalog.pdf', type: 'PDF', size: '842 KB', date: 'Jan 15', color: 'text-red-500 bg-red-50', indexed: true },
-    { name: 'pricing-tiers.csv', type: 'CSV', size: '28 KB', date: 'Jan 16', color: 'text-green-600 bg-green-50', indexed: true },
-    { name: 'sales-guide.txt', type: 'TXT', size: '156 KB', date: 'Jan 18', color: 'text-rose-500 bg-rose-50', indexed: true },
-    { name: 'company-info.docx', type: 'DOCX', size: '1.4 MB', date: 'Jan 20', color: 'text-blue-500 bg-blue-50', indexed: true },
-]
+function formatFileSize(bytes: number): string {
+    if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(1)} MB`;
+    if (bytes >= 1_000) return `${Math.round(bytes / 1_000)} KB`;
+    return `${bytes} B`;
+}
+
+function formatDate(date: Date | string): string {
+    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getMimeLabel(mimeType: string): string {
+    const map: Record<string, string> = {
+        'application/pdf': 'PDF',
+        'text/csv': 'CSV',
+        'text/plain': 'TXT',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
+        'application/msword': 'DOC',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
+    };
+    return map[mimeType] ?? mimeType.split('/').pop()?.toUpperCase() ?? 'FILE';
+}
 
 export const OverViewSection = () => {
-    const systemPrompt = `You are a professional sales assistant for AgentForge. Your role is to:
+    const { data, isLoading, isError } = useAgentOverview();
 
-• Greet visitors warmly and understand their needs
-• Qualify leads by asking about team size, budget, and timelin...`
+
+    if (isLoading) {
+        return (
+            <section className="flex flex-col gap-6">
+                <div className="grid grid-cols-2 gap-4">
+                    <Card className="p-6 shadow-none flex flex-col gap-3">
+                        <Skeleton className="h-5 w-32" />
+                        <Skeleton className="h-48 w-full" />
+                        <Skeleton className="h-4 w-28" />
+                    </Card>
+                    <Card className="p-6 shadow-none flex flex-col gap-3">
+                        <Skeleton className="h-5 w-36" />
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                        ))}
+                    </Card>
+                </div>
+                <Card className="p-4 shadow-none flex flex-col gap-3">
+                    <Skeleton className="h-5 w-28" />
+                    <Skeleton className="h-12 w-full" />
+                </Card>
+            </section>
+        );
+    }
+
+    if (isError) {
+        return (
+            <section className="flex flex-col gap-6">
+                <Card className="p-10 shadow-none flex flex-col items-center justify-center gap-3 text-center">
+                    <AlertCircleIcon className="size-8 text-destructive" />
+                    <h3 className="text-base font-semibold">Failed to load overview</h3>
+                    <p className="text-sm text-muted-foreground">Something went wrong while fetching agent details. Please try again.</p>
+                </Card>
+            </section>
+        );
+    }
 
     return (
         <section className="flex flex-col gap-6">
@@ -29,14 +79,11 @@ export const OverViewSection = () => {
                             <MessageSquareIcon className="size-5 text-foreground" />
                             <h3 className="text-base font-bold">System Prompt</h3>
                         </div>
-                        <span className="text-sm text-muted-foreground">284 chars</span>
+                        <span className="text-sm text-muted-foreground">{data?.systemPromptCharCount} chars</span>
                     </div>
                     <div className="flex-1 rounded-lg bg-muted/30 p-4 font-mono text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-                        {systemPrompt}
+                        {data?.systemPrompt}
                     </div>
-                    <button type="button" className="mt-4 flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-                        View Full Prompt <ArrowRightIcon className="size-4" />
-                    </button>
                 </Card>
 
                 {/* Knowledge Base */}
@@ -51,26 +98,28 @@ export const OverViewSection = () => {
                         </Button>
                     </div>
                     <div className="flex flex-col gap-2 flex-1">
-                        {knowledgeBaseFiles.map((file) => (
-                            <div key={file.name} className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/30 transition-colors">
+                        {data?.knowledgeBase !== undefined && data?.knowledgeBase.length > 0 ? data?.knowledgeBase.map((file) => (
+                            <div key={file.id} className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/30 transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <div className={`size-10 rounded-lg flex items-center justify-center ${file.color}`}>
+                                    <div className={`size-10 rounded-lg flex items-center justify-center ${file.status === 'completed' ? 'text-green-600 bg-green-50' : 'text-muted-foreground bg-muted/50'}`}>
                                         <FileTextIcon className="size-5" />
                                     </div>
                                     <div className="flex flex-col">
-                                        <span className="text-sm font-medium">{file.name}</span>
+                                        <span className="text-sm font-medium">{file.fileName}</span>
                                         <span className="text-xs text-muted-foreground font-mono">
-                                            {file.type} · {file.size} · {file.date}
+                                            {getMimeLabel(file.mimeType)} · {formatFileSize(file.fileSize)} · {formatDate(file.createdAt)}
                                         </span>
                                     </div>
                                 </div>
-                                {file.indexed && (
+                                {file.status === 'completed' && (
                                     <Badge variant="outline" className="rounded-full border-emerald-200 bg-emerald-50 text-emerald-700 text-[11px] font-semibold">
                                         Indexed
                                     </Badge>
                                 )}
                             </div>
-                        ))}
+                        )) : (
+                            <p className="text-sm text-muted-foreground">No knowledge base files available.</p>
+                        )}
                     </div>
                 </Card>
             </div>

@@ -15,5 +15,5 @@ export const prefetchAgents = (params: Input) => {
  * Prefetch a single agent by ID
  */
 export const prefetchAgent = (id: string) => {
-    return prefetch(trpc.agent.getOne.queryOptions({id}));
+    return prefetch(trpc.agentById.getOne.queryOptions({id}));
 }

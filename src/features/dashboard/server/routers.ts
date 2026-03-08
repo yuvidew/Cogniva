@@ -2,25 +2,47 @@ import { createTRPCRouter, premiumProcedure } from "@/trpc/init";
 import prisma from "@/lib/db";
 import z from "zod";
 import { inngest } from "@/inngest/client";
+import { google } from '@ai-sdk/google';
+import { generateText } from 'ai';
 
 export const dashboardRouter = createTRPCRouter({
     getWorkflowStats: premiumProcedure.query(async ({ ctx }) => {
         return await prisma.workflow.findMany();
     }),
-    createWorkflow: premiumProcedure
-    .input(z.object({ name: z.string().min(1).max(100) }))
-    .mutation(async ({ input }) => {
+    textAi: premiumProcedure
+        .input(z.object({ prompt: z.string().min(1).max(500) }))
+        .mutation(async ({ input }) => {
+            // const { text } = await generateText({
+            //     model: google('gemini-2.5-flash'),
+            //     prompt: input.prompt,
+            // });
 
-        await inngest.send({
-            name: "test/hello.world",
-            data: {
-                email: "yuvi@gmail.com",
-            },
-        });
-        
-        const { name } = input;
-        return {success : true, message : `Workflow '${name}' created successfully`};
-    }),
+            // return {result : text};
+
+            await inngest.send({
+                name: "test/ai.function",
+                data: {
+                    prompt: input.prompt,
+                },
+            });
+
+            return { success: true, message: `AI function triggered with prompt: ${input.prompt}` };
+            
+        }),
+    createWorkflow: premiumProcedure
+        .input(z.object({ name: z.string().min(1).max(100) }))
+        .mutation(async ({ input }) => {
+
+            await inngest.send({
+                name: "test/hello.world",
+                data: {
+                    email: "yuvi@gmail.com",
+                },
+            });
+
+            const { name } = input;
+            return { success: true, message: `Workflow '${name}' created successfully` };
+        }),
     getStats: premiumProcedure.query(async ({ ctx }) => {
         const ownerId = ctx.auth.user.id;
 

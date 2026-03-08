@@ -53,11 +53,6 @@ export function SiteHeader() {
                 />
                 <h1 className=" font-medium text-lg">{headerContent()}</h1>
                 <div className="ml-auto flex items-center gap-2">
-                    {data?.length ? `${data.length} Workflows` : "No Workflows"}
-
-                    <Button size="sm" onClick={() => mutate({name: `Workflow ${data?.length ? data.length + 1 : 1}`})} disabled={isPending}>
-                        {isPending ? "Creating..." : "Create Workflow"}
-                    </Button>
                     <ModeToggle/>
                 </div>
             </div>
