@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { SearchIcon, PlusIcon, MessageCircleIcon, MoreHorizontalIcon, SendIcon, LoaderIcon, Trash2 } from 'lucide-react'
-import { useAgentChats, useChatMessages, useStartChat, useSendMessage } from '../hooks/use-agents'
+import { useAgentChats, useStartChat, useAIChat } from '../hooks/use-agents'
 import { useParams } from 'next/navigation'
 
 import { formatRelativeDate } from '@/lib/utils'
@@ -14,50 +14,145 @@ import { DeleteChat } from './delete-chat'
 
 
 
+/**
+ * ChatsSection
+ *
+ * Main chat UI component for a specific agent. Renders a two-panel layout:
+ * - Left panel: scrollable list of all chats with search and "new chat" button.
+ * - Right panel: selected chat messages with AI response polling, markdown
+ *   rendering, auto-scroll, and a message input bar.
+ *
+ * All API interaction is delegated to custom hooks (`useAgentChats`,
+ * `useAIChat`, `useStartChat`) so this component only owns presentation
+ * state and user-interaction handlers.
+ */
 export const ChatsSection = () => {
+    /**
+     * `agentId` — extracted from the URL param `[id]`.
+     * Used as the agent context for all chat operations (create, send, fetch).
+     */
     const { id: agentId } = useParams<{ id: string }>()
+
+    /**
+     * `selectedChatId` — the ID of the currently open chat.
+     * `null` means no chat is selected; the right panel shows an empty state.
+     * Updated when the user clicks a sidebar chat item or creates a new chat.
+     */
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
+
+    /**
+     * `search` — current value of the sidebar search input.
+     * Used to filter `chats` in real-time via `filteredChats`.
+     */
     const [search, setSearch] = useState('')
+
+    /**
+     * `messageInput` — current value of the message text input at the bottom.
+     * Cleared immediately after the user submits so the field resets.
+     */
     const [messageInput, setMessageInput] = useState('')
-    const [isWaitingForAI, setIsWaitingForAI] = useState(false)
-    const sentMessageCountRef = useRef(0)
 
+    /**
+     * `useAgentChats` — fetches all chats belonging to this agent.
+     * Returns `chats` (array) and `chatsLoading` (boolean) from TanStack Query.
+     * Provides the sidebar list including title, last message preview, and count.
+     */
     const { data: chats = [], isLoading: chatsLoading } = useAgentChats()
-    const { data: messages = [], isLoading: messagesLoading } = useChatMessages(
-        selectedChatId,
-        isWaitingForAI ? 2000 : false
-    )
-    const startChat = useStartChat()
-    const sendMessage = useSendMessage(selectedChatId)
 
-    // Stop polling once a new assistant message appears after we sent
+    /**
+     * `useAIChat` — composite hook that owns the full AI chat lifecycle for
+     * the currently selected chat:
+     * - Polls for new messages every 2 s while waiting for the AI reply.
+     * - Stops polling and invalidates `getChats` once the assistant message arrives
+     *   (so the sidebar title updates without a page refresh).
+     * - Exposes `send(content, chatId)` to submit a user message.
+     *
+     * Destructured values:
+     * - `messages`       — ordered list of chat messages for the selected chat.
+     * - `messagesLoading`— true on the initial messages fetch.
+     * - `isWaitingForAI` — true while the background Inngest job is still running.
+     * - `isSending`      — true while the `sendMessage` mutation is in-flight.
+     * - `send`           — function to send a new user message.
+     */
+    const { messages, messagesLoading, isWaitingForAI, isSending, send } = useAIChat(selectedChatId)
+
+    /**
+     * `startChat` — mutation to create a new empty chat for this agent.
+     * On success the new chat's ID is stored in `selectedChatId` so the right
+     * panel immediately opens it.
+     * `startChat.isPending` drives the loading spinner on the "+" button.
+     */
+    const startChat = useStartChat()
+
+    /**
+     * `messagesEndRef` — ref attached to an invisible `<div>` rendered after
+     * the last message bubble (including the "Thinking..." indicator).
+     * Used as a scroll target so the view always shows the newest content.
+     */
+    const messagesEndRef = useRef<HTMLDivElement>(null)
+
+    /**
+     * Auto-scroll effect — runs whenever `messages` or `isWaitingForAI` changes.
+     * Smoothly scrolls the `messagesEndRef` div into view so the user always
+     * sees the latest message or the "Thinking..." indicator without manually
+     * scrolling down.
+     */
     useEffect(() => {
-        if (!isWaitingForAI) return
-        if (messages.length > sentMessageCountRef.current && messages[messages.length - 1]?.role === 'assistant') {
-            setIsWaitingForAI(false)
-        }
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages, isWaitingForAI])
 
+    /**
+     * `selectedChat` — derived value: the full chat object whose `id` matches
+     * `selectedChatId`. Used in the right panel header (title, status badge,
+     * message count) and to pass `chatId` / `title` to `<DeleteChat>`.
+     * `undefined` when no chat is selected.
+     */
     const selectedChat = chats.find((c) => c.id === selectedChatId)
 
+    /**
+     * `filteredChats` — derived value: subset of `chats` that match the
+     * current `search` string. Matches against both the chat title and the
+     * content of the first message (preview text shown in the sidebar).
+     * Re-computed on every render when `chats` or `search` changes.
+     */
     const filteredChats = chats.filter((chat) =>
         chat.title.toLowerCase().includes(search.toLowerCase()) ||
         (chat.messages[0]?.content ?? '').toLowerCase().includes(search.toLowerCase())
     )
 
+    /**
+     * `handleNewChat` — creates a new chat via the `startChat` mutation and
+     * immediately selects it so the right panel opens the fresh conversation.
+     * Memoised with `useCallback` to avoid re-creating the function on every
+     * render; only recreated when `agentId` or `startChat` changes.
+     *
+     * @example
+     * // Triggered by the "+" icon button in the sidebar header
+     * <Button onClick={handleNewChat} />
+     */
     const handleNewChat = useCallback(async () => {
         const chat = await startChat.mutateAsync({ id: agentId })
         setSelectedChatId(chat.id)
     }, [agentId, startChat])
 
+    /**
+     * `handleSend` — validates and submits the current `messageInput`.
+     * Guards against empty input, no selected chat, or an in-flight send.
+     * Clears the input field optimistically before awaiting the mutation so
+     * the UI feels instant. Delegates actual API call to `send` from `useAIChat`.
+     * Memoised with `useCallback`; recreated when any dependency changes.
+     *
+     * @example
+     * // Triggered by the Send button click or Enter key in the input field
+     * <Button onClick={handleSend} />
+     * <Input onKeyDown={(e) => e.key === 'Enter' && handleSend()} />
+     */
     const handleSend = useCallback(async () => {
-        if (!messageInput.trim() || !selectedChatId || sendMessage.isPending) return
+        if (!messageInput.trim() || !selectedChatId || isSending) return
         const content = messageInput.trim()
         setMessageInput('')
-        sentMessageCountRef.current = messages.length + 1 // +1 for the user message about to be saved
-        await sendMessage.mutateAsync({ id: agentId, chatId: selectedChatId, content })
-        setIsWaitingForAI(true)
-    }, [messageInput, selectedChatId, agentId, sendMessage, messages.length])
+        await send(content, selectedChatId)
+    }, [messageInput, selectedChatId, isSending, send])
 
     return (
         
@@ -222,6 +317,8 @@ export const ChatsSection = () => {
                                         </div>
                                     </div>
                                 )}
+                                {/* Scroll anchor */}
+                                <div ref={messagesEndRef} />
                             </div>
                         </ScrollArea>
 
@@ -234,15 +331,15 @@ export const ChatsSection = () => {
                                     value={messageInput}
                                     onChange={(e) => setMessageInput(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                                    disabled={sendMessage.isPending || isWaitingForAI}
+                                    disabled={isSending || isWaitingForAI}
                                 />
                                 <Button
                                     size="icon"
                                     className="size-10 flex-none"
                                     onClick={handleSend}
-                                    disabled={!messageInput.trim() || sendMessage.isPending || isWaitingForAI}
+                                    disabled={!messageInput.trim() || isSending || isWaitingForAI}
                                 >
-                                    {sendMessage.isPending || isWaitingForAI ? <LoaderIcon className="size-4 animate-spin" /> : <SendIcon className="size-4" />}
+                                    {isSending || isWaitingForAI ? <LoaderIcon className="size-4 animate-spin" /> : <SendIcon className="size-4" />}
                                 </Button>
                             </div>
                         </div>

@@ -1,5 +1,6 @@
 import prisma from "@/lib/db";
 import { inngest } from "./client";
+import { APPWRITER_BUCKET_ID, APPWRITER_KEY, ENDPOINT, PROJECT_ID } from "@/lib/config";
 
 import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
@@ -33,31 +34,84 @@ export const processChatMessage = inngest.createFunction(
       userMessageContent: string;
     };
 
-    // Step 1: Fetch agent system prompt and conversation history
-    const { agent, history } = await step.run("fetch-context", async () => {
-      const agent = await prisma.agent.findFirstOrThrow({
-        where: { id: agentId },
-        select: { systemPrompt: true, temperature: true },
-      });
-      const history = await prisma.chatMessage.findMany({
-        where: { chatId },
-        orderBy: { createdAt: "asc" },
-      });
-      return { agent, history };
+    // Step 1: Fetch agent system prompt, conversation history, and uploaded files
+    const { agent, history, files } = await step.run("fetch-context", async () => {
+      const [agent, history, files] = await Promise.all([
+        prisma.agent.findFirstOrThrow({
+          where: { id: agentId },
+          select: { systemPrompt: true, temperature: true },
+        }),
+        prisma.chatMessage.findMany({
+          where: { chatId },
+          orderBy: { createdAt: "asc" },
+        }),
+        // Fetch all knowledge-base files linked to this agent
+        prisma.fileUpload.findMany({
+          where: { agentId },
+          select: { fileUrl: true, mimeType: true, fileName: true },
+        }),
+      ]);
+      return { agent, history, files };
     });
 
-    // Step 2: Call Gemini
+    // Step 2: Call Gemini — inject uploaded file contents into the first user message
     const text = await step.run("call-gemini", async () => {
+      // Download each file from Appwrite and convert to base64
+      const fileParts = await Promise.all(
+        files.map(async (file) => {
+          // Extract the Appwrite file ID from the stored URL
+          const fileIdMatch = file.fileUrl.match(/\/files\/([^/]+)\/view/);
+          if (!fileIdMatch?.[1]) return null;
+
+          const downloadUrl = `${ENDPOINT}/storage/buckets/${APPWRITER_BUCKET_ID}/files/${fileIdMatch[1]}/download?project=${PROJECT_ID}`;
+          const res = await fetch(downloadUrl, {
+            headers: {
+              "X-Appwrite-Project": PROJECT_ID,
+              "X-Appwrite-Key": APPWRITER_KEY,
+            },
+          });
+          if (!res.ok) return null;
+
+          const buffer = await res.arrayBuffer();
+          return {
+            type: "file" as const,
+            data: Buffer.from(buffer),
+            mediaType: file.mimeType as `${string}/${string}`,
+          };
+        })
+      );
+
+      const validFileParts = fileParts.filter(Boolean) as {
+        type: "file";
+        data: Buffer;
+        mediaType: `${string}/${string}`;
+      }[];
+
+      // Build messages — attach files inline to the first user message so Gemini can read them
+      const messages = history.map((msg, index) => {
+        const isFirstUserMsg = index === 0 && msg.role === "user" && validFileParts.length > 0;
+        if (isFirstUserMsg) {
+          return {
+            role: "user" as const,
+            content: [
+              ...validFileParts,
+              { type: "text" as const, text: msg.content },
+            ],
+          };
+        }
+        return {
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+        };
+      });
+
       const result = await generateText({
         model: google("gemini-2.5-flash"),
         system: agent.systemPrompt,
         temperature: agent.temperature,
-        messages: history.map((msg) => ({
-          role: msg.role as "user" | "assistant",
-          content: msg.content,
-        })),
+        messages,
       });
-      return result.text; // Return only the plain string so Inngest can serialize it
+      return result.text;
     });
 
     // Step 3: Save AI response + update chat

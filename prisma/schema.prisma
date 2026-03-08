@@ -41,6 +41,7 @@ model Agent {
   ownerId           String
   owner             User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   chats             Chat[]
+  fileUploads       FileUpload[]
 
   @@index([isActive])
   @@index([ownerId])
@@ -196,10 +197,14 @@ model FileUpload {
   uploaderId  String
   uploader    User             @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
 
+  agentId     String?
+  agent       Agent?           @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
   messageId   String?
   message     ChatMessage?     @relation(fields: [messageId], references: [id], onDelete: SetNull)
 
   @@index([uploaderId])
+  @@index([agentId])
   @@index([messageId])
   @@map("file_upload")
 }

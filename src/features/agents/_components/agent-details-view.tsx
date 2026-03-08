@@ -2,7 +2,7 @@
 
 import { ArrowLeftIcon, MessageCircleIcon, LayoutGridIcon, FileTextIcon, CogIcon, SquarePenIcon, Trash2Icon,  } from 'lucide-react'
 import Link from 'next/link'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -98,7 +98,7 @@ const AgentDetailsSection = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-5 border-t  bg-muted/20 text-xs text-muted-foreground">
+                <div className="grid grid-cols-4 border-t  bg-muted/20 text-xs text-muted-foreground">
                     <div className="flex flex-col gap-1 px-6 py-4 border-r ">
                         <span className="text-xl font-bold text-foreground">{data?.stats.totalChats}</span>
                         <span className="uppercase tracking-wide font-medium text-[11px]">Total chats</span>
@@ -114,15 +114,10 @@ const AgentDetailsSection = () => {
                         <span className="uppercase tracking-wide font-medium text-[11px]">Files</span>
                         <span className="text-[11px]">in knowledge base</span>
                     </div>
-                    <div className="flex flex-col gap-1 px-6 py-4 border-r ">
+                    <div className="flex flex-col gap-1 px-6 py-4  ">
                         <span className="text-xl font-bold text-foreground">{data?.temperature}</span>
                         <span className="uppercase tracking-wide font-medium text-[11px]">Temperature</span>
                         <span className="text-[11px]">Balanced precision</span>
-                    </div>
-                    <div className="flex flex-col gap-1 px-6 py-4">
-                        <span className="text-xl font-bold text-foreground">{data?.stats.chatGrowthPercent ? 0 : data?.stats.chatGrowthPercent}%</span>
-                        <span className="uppercase tracking-wide font-medium text-[11px]">Response rate</span>
-                        <span className="text-[11px]">Avg. 1.2s latency</span>
                     </div>
                 </div>
 
