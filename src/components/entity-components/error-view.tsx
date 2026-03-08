@@ -13,7 +13,7 @@ export const ErrorView = ({
     message,
 } : ErrorViewProps)=> {
     return (
-        <div className=" flex justify-center items-center h-full flex-1 flex-col gap-y-4">
+        <div className=" flex justify-center items-center h-[80vh] flex-1 flex-col gap-y-4">
             <AlertTriangleIcon className="text-primary size-8" />
 
             {!!message && <p className="text-sm text-muted-foreground">{message}</p>}

@@ -54,8 +54,8 @@ const data = {
             icon: Cpu,
         },
         {
-            title: "Charts",
-            url: "/charts",
+            title: "Chats",
+            url: "/chats",
             icon: MessageCircle,
         },
         {
