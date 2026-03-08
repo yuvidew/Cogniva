@@ -5,28 +5,8 @@ import { ArrowRightIcon, AlertCircleIcon, FileTextIcon, FolderOpenIcon, InfoIcon
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAgentOverview } from '../hooks/use-agents'
+import { formatFileSize, getMimeLabel, formatDate1} from '@/lib/utils'
 
-function formatFileSize(bytes: number): string {
-    if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(1)} MB`;
-    if (bytes >= 1_000) return `${Math.round(bytes / 1_000)} KB`;
-    return `${bytes} B`;
-}
-
-function formatDate(date: Date | string): string {
-    return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function getMimeLabel(mimeType: string): string {
-    const map: Record<string, string> = {
-        'application/pdf': 'PDF',
-        'text/csv': 'CSV',
-        'text/plain': 'TXT',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'DOCX',
-        'application/msword': 'DOC',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'XLSX',
-    };
-    return map[mimeType] ?? mimeType.split('/').pop()?.toUpperCase() ?? 'FILE';
-}
 
 export const OverViewSection = () => {
     const { data, isLoading, isError } = useAgentOverview();
@@ -69,9 +49,7 @@ export const OverViewSection = () => {
     }
 
     return (
-        <section className="flex flex-col gap-6">
-            {/* System Prompt + Knowledge Base */}
-            <div className="grid grid-cols-2 gap-4">
+        <section className="grid grid-cols-2 gap-4">
                 {/* System Prompt */}
                 <Card className="p-6 shadow-none flex flex-col gap-1">
                     <div className="flex items-center justify-between mb-4">
@@ -107,7 +85,7 @@ export const OverViewSection = () => {
                                     <div className="flex flex-col">
                                         <span className="text-sm font-medium">{file.fileName}</span>
                                         <span className="text-xs text-muted-foreground font-mono">
-                                            {getMimeLabel(file.mimeType)} · {formatFileSize(file.fileSize)} · {formatDate(file.createdAt)}
+                                            {getMimeLabel(file.mimeType)} · {formatFileSize(file.fileSize)} · {formatDate1(new Date(file.createdAt))}
                                         </span>
                                     </div>
                                 </div>
@@ -122,34 +100,6 @@ export const OverViewSection = () => {
                         )}
                     </div>
                 </Card>
-            </div>
-
-            {/* Quick Test */}
-            <Card className="p-4 shadow-none gap-0">
-                <div className="flex items-center justify-between mb-4 ">
-                    <div className="flex items-center gap-2">
-                        <ZapIcon className="size-5 text-foreground" />
-                        <h3 className="text-base font-bold">Quick Test</h3>
-                    </div>
-                    <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-700 text-xs font-medium">
-                        Single response only · Full chat in Chats tab
-                    </Badge>
-                </div>
-                <div className="flex items-center gap-3 ">
-                    <Input
-                        placeholder="Ask something to quickly test your agent..."
-                        className="flex-1 h-12 rounded-px-5 text-sm"
-                    />
-                    <Button className="h-12  px-6 gap-2 text-sm font-semibold">
-                        <ZapIcon className="size-4" />
-                        Test
-                    </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
-                    <InfoIcon className="size-3" />
-                    Use the <span className="font-semibold text-primary">Chats tab</span> for full conversation history.
-                </p>
-            </Card>
         </section>
     )
 }

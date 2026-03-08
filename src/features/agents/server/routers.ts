@@ -4,6 +4,10 @@ import { inngest } from "@/inngest/client";
 import { createTRPCRouter, premiumProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import z from "zod";
+import { InputFile } from "node-appwrite/file";
+import { ID } from "node-appwrite";
+import { createAdminClient } from "@/server/appwriter";
+import { APPWRITER_BUCKET_ID, ENDPOINT, PROJECT_ID } from "@/lib/config";
 
 export const agentByIdRouter = createTRPCRouter({
     getOne: premiumProcedure
@@ -49,7 +53,7 @@ export const agentByIdRouter = createTRPCRouter({
                 }),
                 prisma.fileUpload.count({
                     where: {
-                        message: { chat: { agentId: input.id } },
+                        agentId: input.id,
                     },
                 }),
             ]);
@@ -89,11 +93,7 @@ export const agentByIdRouter = createTRPCRouter({
 
             const knowledgeBaseFiles = await prisma.fileUpload.findMany({
                 where: {
-                    message: {
-                        chat: {
-                            agentId: input.id,
-                        },
-                    },
+                    agentId: input.id,
                 },
                 select: {
                     id: true,
@@ -205,6 +205,86 @@ export const agentByIdRouter = createTRPCRouter({
                     userMessageContent: input.content,
                 },
             });
+
+            return { success: true };
+        }),
+    uploadFile: premiumProcedure
+        .input(
+            z.object({
+                id: z.string(),           // agentId — no chatId needed, files tab is knowledge-base level
+                fileName: z.string(),
+                mimeType: z.string(),
+                fileSize: z.number(),
+                fileBase64: z.string(),   // base64-encoded file content
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            // Verify the agent belongs to this user
+            const agent = await prisma.agent.findFirst({
+                where: { id: input.id, ownerId: ctx.auth.user.id },
+            });
+            if (!agent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
+
+            // Convert base64 → Buffer and upload to Appwrite Storage
+            const buffer = Buffer.from(input.fileBase64, "base64");
+            const { storage } = await createAdminClient();
+
+            const appwriteFile = await storage.createFile(
+                APPWRITER_BUCKET_ID,
+                ID.unique(),
+                InputFile.fromBuffer(buffer, input.fileName),
+            );
+
+            // Build the public view URL
+            const fileUrl = `${ENDPOINT}/storage/buckets/${APPWRITER_BUCKET_ID}/files/${appwriteFile.$id}/view?project=${PROJECT_ID}`;
+
+            // Persist — linked directly to agent, no message/chat needed
+            const fileUpload = await prisma.fileUpload.create({
+                data: {
+                    fileName: input.fileName,
+                    fileUrl,
+                    fileSize: input.fileSize,
+                    mimeType: input.mimeType,
+                    status: "completed",
+                    uploaderId: ctx.auth.user.id,
+                    agentId: input.id,
+                },
+            });
+
+            return fileUpload;
+        }),
+    getFiles: premiumProcedure
+        .input(z.object({ id: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const files = await prisma.fileUpload.findMany({
+                where: {
+                    agentId: input.id,
+                    uploader: { id: ctx.auth.user.id },
+                },
+                orderBy: { createdAt: "desc" },
+            });
+            return files;
+        }),
+    deleteFile: premiumProcedure
+        .input(z.object({ id: z.string(), fileId: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            const file = await prisma.fileUpload.findFirst({
+                where: { id: input.fileId, agentId: input.id, uploaderId: ctx.auth.user.id },
+            });
+            if (!file) throw new TRPCError({ code: "NOT_FOUND", message: "File not found" });
+
+            // Extract Appwrite file ID from the stored URL and delete from storage
+            try {
+                const urlMatch = file.fileUrl.match(/\/files\/([^/]+)\//);
+                if (urlMatch?.[1]) {
+                    const { storage } = await createAdminClient();
+                    await storage.deleteFile(APPWRITER_BUCKET_ID, urlMatch[1]);
+                }
+            } catch {
+                // If Appwrite deletion fails, still remove from DB
+            }
+
+            await prisma.fileUpload.delete({ where: { id: input.fileId } });
 
             return { success: true };
         }),

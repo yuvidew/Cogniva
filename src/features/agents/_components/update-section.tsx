@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
     CheckCircle2Icon,
     InfoIcon,
@@ -18,68 +18,141 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import { useSuspenseAgent, useUpdateAgent } from '../hooks/use-agents'
+import { formatDateWithMonth } from '@/lib/utils'
+import { AgentModelProvider } from '@/generated/prisma/enums'
+import { Spinner } from '@/components/ui/spinner'
 
+/** Emoji options the user can pick as the agent's avatar */
 const avatarEmoji = ['🤖', '👩‍💻', '🧠', '🚀', '💡', '📊', '🎯', '🔍', '⚡', '🌟']
 
-const aiModels = [
-    { value: 'gpt-4o', label: 'GPT-4o' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-    { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
-    { value: 'claude-3-opus', label: 'Claude 3 Opus' },
-    { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
+/**
+ * `aiModels` — display list for the AI model selector.
+ * Values must match the `AgentModelProvider` enum in the Prisma schema.
+ */
+const aiModels: { value: AgentModelProvider; label: string }[] = [
+    { value: AgentModelProvider.google, label: 'Gemini (Google)' },
+    // { value: AgentModelProvider.openai, label: 'OpenAI' },
+    // { value: AgentModelProvider.anthropic, label: 'Anthropic (Claude)' },
 ]
 
-const NAME_MAX = 50
-const DESC_MAX = 250
+/** Max character limits matching the Prisma schema VarChar constraints */
+const NAME_MAX = 100
+const DESC_MAX = 300
 const PROMPT_MAX = 4000
 
+/**
+ * UpdateSection
+ *
+ * Settings form that loads the current agent's configuration from the
+ * `getOne` tRPC procedure and allows the user to edit and persist changes
+ * via the `update` tRPC procedure.
+ *
+ * - All fields are initialised from the real agent data on mount.
+ * - "Save Changes" calls `useUpdateAgent` and shows a success/error toast.
+ * - "Discard" resets every field back to the last fetched agent values.
+ * - Uses `useSuspenseAgent` so data is always available (parent has Suspense).
+ */
 export const UpdateSection = () => {
-    const [selectedAvatar, setSelectedAvatar] = useState('🤖')
-    const [agentName, setAgentName] = useState('Sales Assistant')
-    const [aiModel, setAiModel] = useState('gpt-4o')
-    const [description, setDescription] = useState(
-        'Handles inbound sales queries, qualifies leads, and books product demos automatically for your team. Optimized for high conversion and seamless handoff to human reps.'
+    /**
+     * `agent` — real agent data fetched via `useSuspenseAgent`.
+     * Guaranteed to be non-null because of the Suspense boundary higher up.
+     */
+    const { data: agent } = useSuspenseAgent()
+
+    /**
+     * `updateAgent` — mutation hook that persists form changes to the DB.
+     * `updateAgent.isPending` disables the Save button while in-flight.
+     */
+    const updateAgent = useUpdateAgent()
+
+    // ── Form state ─────────────────────────────────────────────────────────
+
+    /** Currently selected emoji avatar */
+    const [selectedAvatar, setSelectedAvatar] = useState(agent?.avatar ?? '🤖')
+
+    /** Agent display name — max `NAME_MAX` chars */
+    const [agentName, setAgentName] = useState(agent?.name ?? '')
+
+    /** Selected AI model provider — must be an `AgentModelProvider` enum value */
+    const [aiModel, setAiModel] = useState<AgentModelProvider>(
+        (agent?.model as AgentModelProvider) ?? AgentModelProvider.google
     )
-    const [systemPrompt, setSystemPrompt] = useState(
-        `You are a professional sales assistant for AgentForge. Your role is to:
 
-• Greet visitors warmly and understand their needs
-• Qualify leads by asking about team size, budget, and timeline
-• Book demos — never fabricate pricing or features
-• Escalate complex technical queries to engineering
+    /** Short description of the agent — max `DESC_MAX` chars */
+    const [description, setDescription] = useState(agent?.description ?? '')
 
-Tone: Friendly, confident, and concise.`
-    )
-    const [temperature, setTemperature] = useState([0.4])
-    const [maxTokens, setMaxTokens] = useState('1024')
-    const [agentActive, setAgentActive] = useState(true)
-    const [fileUploads, setFileUploads] = useState(true)
-    const [webSearch, setWebSearch] = useState(true)
+    /** System prompt that defines the agent's behaviour — max `PROMPT_MAX` chars */
+    const [systemPrompt, setSystemPrompt] = useState(agent?.systemPrompt ?? '')
 
+    /** Creativity/precision slider value, stored as a single-element array for the Slider component */
+    const [temperature, setTemperature] = useState<number[]>([agent?.temperature ?? 0.4])
+
+    /** Whether the agent is accepting new conversations */
+    const [agentActive, setAgentActive] = useState(agent?.isActive ?? true)
+
+    /** Whether the Files tab is shown and users can upload to the knowledge base */
+    const [fileUploads, setFileUploads] = useState(agent?.fileUploadEnabled ?? false)
+
+    /** Whether the agent is allowed to run web searches */
+    const [webSearch, setWebSearch] = useState(agent?.webSearchEnabled ?? false)
+
+    /**
+     * Sync effect — re-initialises all form state if the fetched agent data
+     * changes (e.g. after a successful save invalidates the query and brings
+     * back fresh data from the server).
+     */
+    useEffect(() => {
+        if (!agent) return
+        setSelectedAvatar(agent.avatar ?? '🤖')
+        setAgentName(agent.name)
+        setAiModel(agent.model as AgentModelProvider)
+        setDescription(agent.description)
+        setSystemPrompt(agent.systemPrompt)
+        setTemperature([agent.temperature])
+        setAgentActive(agent.isActive)
+        setFileUploads(agent.fileUploadEnabled)
+        setWebSearch(agent.webSearchEnabled)
+    }, [agent])
+
+    // ── Handlers ───────────────────────────────────────────────────────────
+
+    /**
+     * `handleDiscard` — resets every form field back to the current values
+     * from the fetched agent data, discarding any unsaved changes.
+     */
     const handleDiscard = useCallback(() => {
-        setSelectedAvatar('🤖')
-        setAgentName('Sales Assistant')
-        setAiModel('gpt-4o')
-        setDescription(
-            'Handles inbound sales queries, qualifies leads, and books product demos automatically for your team. Optimized for high conversion and seamless handoff to human reps.'
-        )
-        setSystemPrompt(
-            `You are a professional sales assistant for AgentForge. Your role is to:
+        if (!agent) return
+        setSelectedAvatar(agent.avatar ?? '🤖')
+        setAgentName(agent.name)
+        setAiModel(agent.model as AgentModelProvider)
+        setDescription(agent.description)
+        setSystemPrompt(agent.systemPrompt)
+        setTemperature([agent.temperature])
+        setAgentActive(agent.isActive)
+        setFileUploads(agent.fileUploadEnabled)
+        setWebSearch(agent.webSearchEnabled)
+    }, [agent])
 
-• Greet visitors warmly and understand their needs
-• Qualify leads by asking about team size, budget, and timeline
-• Book demos — never fabricate pricing or features
-• Escalate complex technical queries to engineering
-
-Tone: Friendly, confident, and concise.`
-        )
-        setTemperature([0.4])
-        setMaxTokens('1024')
-        setAgentActive(true)
-        setFileUploads(true)
-        setWebSearch(true)
-    }, [])
+    /**
+     * `handleSave` — collects the current form state and fires the `update`
+     * mutation. The hook handles toast feedback and query invalidation.
+     */
+    const handleSave = useCallback(async () => {
+        if (!agent) return
+        await updateAgent.mutateAsync({
+            id: agent.id,
+            name: agentName,
+            description,
+            avatar: selectedAvatar,
+            systemPrompt,
+            model: aiModel,
+            temperature: temperature[0],
+            isActive: agentActive,
+            fileUploadEnabled: fileUploads,
+            webSearchEnabled: webSearch,
+        })
+    }, [agent, updateAgent, agentName, description, selectedAvatar, systemPrompt, aiModel, temperature, agentActive, fileUploads, webSearch])
 
     return (
         <section className="flex flex-col gap-8 border p-4 rounded-md">
@@ -102,11 +175,10 @@ Tone: Friendly, confident, and concise.`
                                 key={emoji}
                                 type="button"
                                 onClick={() => setSelectedAvatar(emoji)}
-                                className={`size-11 rounded-xl flex items-center justify-center transition-all text-xl bg-muted/50 ${
-                                    isSelected
+                                className={`size-11 rounded-xl flex items-center justify-center transition-all text-xl bg-muted/50 ${isSelected
                                         ? 'ring-2 ring-primary ring-offset-2'
                                         : 'hover:ring-2 hover:ring-muted-foreground/30 hover:ring-offset-1'
-                                }`}
+                                    }`}
                             >
                                 {emoji}
                             </button>
@@ -136,7 +208,7 @@ Tone: Friendly, confident, and concise.`
 
                 <div className="flex flex-col gap-2">
                     <Label className="text-sm font-semibold">AI Model</Label>
-                    <Select value={aiModel} onValueChange={setAiModel}>
+                    <Select value={aiModel} onValueChange={(v) => setAiModel(v as AgentModelProvider)}>
                         <SelectTrigger className="h-11 w-full">
                             <SelectValue />
                         </SelectTrigger>
@@ -218,30 +290,15 @@ Tone: Friendly, confident, and concise.`
                 </div>
             </div>
 
-            {/* Max Tokens + Status */}
-            <div className="grid grid-cols-2 gap-6">
-                <div className="flex flex-col gap-2">
-                    <Label className="text-sm font-semibold">Max Tokens</Label>
-                    <Input
-                        type="number"
-                        value={maxTokens}
-                        onChange={(e) => setMaxTokens(e.target.value)}
-                        min={100}
-                        max={8000}
-                        className="h-11"
-                    />
-                    <span className="text-xs text-muted-foreground">Range: 100–8,000</span>
-                </div>
-
-                <div className="flex flex-col gap-4">
-                    <Label className="text-sm font-semibold">Status</Label>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm font-medium">Agent Active</p>
-                            <p className="text-xs text-muted-foreground">Pause to stop accepting new conversations</p>
-                        </div>
-                        <Switch checked={agentActive} onCheckedChange={setAgentActive} />
+            {/* Status */}
+            <div className="flex flex-col gap-4">
+                <Label className="text-sm font-semibold">Status</Label>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-medium">Agent Active</p>
+                        <p className="text-xs text-muted-foreground">Pause to stop accepting new conversations</p>
                     </div>
+                    <Switch checked={agentActive} onCheckedChange={setAgentActive} />
                 </div>
             </div>
 
@@ -270,15 +327,35 @@ Tone: Friendly, confident, and concise.`
             {/* Footer */}
             <div className="flex items-center justify-between pt-4 border-t">
                 <p className="text-xs text-muted-foreground">
-                    Last saved: <span className="font-mono">Mar 02, 2026 · 3:14 PM</span>
+                    Last saved:{' '}
+                    <span className="font-mono">
+                        {agent ? formatDateWithMonth(new Date(agent.updatedAt)) : '—'}
+                    </span>
                 </p>
                 <div className="flex items-center gap-3">
-                    <Button variant="outline" onClick={handleDiscard}>
+                    <Button
+                        variant="outline"
+                        onClick={handleDiscard}
+                        disabled={updateAgent.isPending}
+                    >
                         Discard
                     </Button>
-                    <Button className="gap-2">
-                        <CheckCircle2Icon className="size-4" />
-                        Save Changes
+                    <Button
+                        className="gap-2"
+                        onClick={handleSave}
+                        disabled={updateAgent.isPending || !agentName.trim() || !systemPrompt.trim()}
+                    >
+                        {updateAgent.isPending ?
+                            <>
+                                <Spinner />{" "}
+                                Save Changes
+                            </>
+                            :
+                            <>
+
+                                <CheckCircle2Icon className="size-4" />
+                                Save Changes
+                            </>}
                     </Button>
                 </div>
             </div>
