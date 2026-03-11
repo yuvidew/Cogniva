@@ -34,12 +34,14 @@ export const AgentCardSection = ({ agents }: AgentCardSectionProps) => {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href="/dashboard/agents">
-                                View More
-                                <ArrowRightIcon className="size-4" />
-                            </Link>
-                        </Button>
+                        {agents.length > 0 && (
+                            <Button variant="outline" asChild>
+                                <Link href="/dashboard/agents">
+                                    View More
+                                    <ArrowRightIcon className="size-4" />
+                                </Link>
+                            </Button>
+                        )}
                         <Button onClick={openForm} className="bg-blue-600 hover:bg-blue-700 text-white">
                             <PlusIcon className="size-4" />
                             Create New Agent

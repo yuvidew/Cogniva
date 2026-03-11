@@ -4,3 +4,8 @@ export const PAGINATION = {
     MAX_PAGE_SIZE : 100,
     MIN_PAGE_SIZE: 1
 }
+
+export const MESSAGE_LIMITS = {
+    FREE: 100,
+    PRO: 1000,
+} as const

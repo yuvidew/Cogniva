@@ -35,9 +35,7 @@ const checkTheLabel = (label: string, value: number, extra?: number): {
                 buttonVariant: "light-yellow",
                 title: "Total Messages",
                 paragraph: (
-                    <p className=" text-muted-foreground text-sm">
-                        of {extra ?? 0} limit
-                    </p>
+                    <></>
                 ),
             };
         case "active_agents":

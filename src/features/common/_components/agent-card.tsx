@@ -37,6 +37,13 @@ export const AgentCard = ({ agent }: AgentCardProps) => {
 
     const navigate = useRouter();
 
+    const handleOpenChat = () => {
+        navigate.push(`/agents/${agent.id}`);
+
+
+        sessionStorage.setItem("agentName", agent.name);
+    }
+
     return (
         <Card className="shadow-none px-4 py-4 gap-3 justify-between hover:shadow-md transition-shadow relative">
             <Badge
@@ -72,7 +79,7 @@ export const AgentCard = ({ agent }: AgentCardProps) => {
                     variant="outline" 
                     size="sm" 
                     className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                    onClick={() => navigate.push(`/agents/${agent.id}`)}
+                    onClick={handleOpenChat}
                 >
                     <MessageCircleIcon className="size-3.5" />
                     Open Chat
