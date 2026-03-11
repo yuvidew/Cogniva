@@ -8,7 +8,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 
 
 
-export default async function Home() {
+const Home = async () => {
   const session = await requireAuth();
 
   await dashboardParamsLoader({});
@@ -25,3 +25,5 @@ export default async function Home() {
     </HydrateClient>
   );
 }
+
+export default Home;

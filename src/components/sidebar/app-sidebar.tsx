@@ -54,11 +54,6 @@ const data = {
             icon: Cpu,
         },
         {
-            title: "Chats",
-            url: "/chats",
-            icon: MessageCircle,
-        },
-        {
             title: "Profile",
             url: "/profile",
             icon: Users,

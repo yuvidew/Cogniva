@@ -1,48 +1,9 @@
 import { createTRPCRouter, premiumProcedure } from "@/trpc/init";
 import prisma from "@/lib/db";
-import z from "zod";
-import { inngest } from "@/inngest/client";
-import { google } from '@ai-sdk/google';
-import { generateText } from 'ai';
 
 export const dashboardRouter = createTRPCRouter({
-    getWorkflowStats: premiumProcedure.query(async ({ ctx }) => {
-        return await prisma.workflow.findMany();
-    }),
-    textAi: premiumProcedure
-        .input(z.object({ prompt: z.string().min(1).max(500) }))
-        .mutation(async ({ input }) => {
-            // const { text } = await generateText({
-            //     model: google('gemini-2.5-flash'),
-            //     prompt: input.prompt,
-            // });
 
-            // return {result : text};
 
-            await inngest.send({
-                name: "test/ai.function",
-                data: {
-                    prompt: input.prompt,
-                },
-            });
-
-            return { success: true, message: `AI function triggered with prompt: ${input.prompt}` };
-            
-        }),
-    createWorkflow: premiumProcedure
-        .input(z.object({ name: z.string().min(1).max(100) }))
-        .mutation(async ({ input }) => {
-
-            await inngest.send({
-                name: "test/hello.world",
-                data: {
-                    email: "yuvi@gmail.com",
-                },
-            });
-
-            const { name } = input;
-            return { success: true, message: `Workflow '${name}' created successfully` };
-        }),
     getStats: premiumProcedure.query(async ({ ctx }) => {
         const ownerId = ctx.auth.user.id;
 
@@ -57,7 +18,7 @@ export const dashboardRouter = createTRPCRouter({
             Math.ceil((endOfMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
         );
 
-        const [totalAgents, activeAgents, inactiveAgents, agentsThisMonth, latestAgents] =
+        const [totalAgents, activeAgents, inactiveAgents, agentsThisMonth, latestAgents, totalMessages] =
             await Promise.all([
                 prisma.agent.count({ where: { ownerId } }),
                 prisma.agent.count({ where: { ownerId, isActive: true } }),
@@ -73,12 +34,17 @@ export const dashboardRouter = createTRPCRouter({
                     orderBy: { createdAt: "desc" },
                     take: 6,
                 }),
+                prisma.chatMessage.count({
+                    where: {
+                        chat: { userId: ownerId },
+                    },
+                }),
             ]);
 
         return {
             totalAgents,
             agentsThisMonth,
-            totalMessages: 0, // no messages table yet
+            totalMessages,
             activeAgents,
             inactiveAgents,
             daysUntilReset,
