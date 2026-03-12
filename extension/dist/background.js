@@ -1,0 +1,1 @@
+chrome.sidePanel.setPanelBehavior({openPanelOnActionClick:!0}).catch(console.error);chrome.runtime.onMessage.addListener((e,o,r)=>{if(e.type==="PAGE_CONTEXT")return chrome.storage.session.set({pageContext:e.payload}).then(()=>r({ok:!0})).catch(t=>r({ok:!1,error:String(t)})),!0});

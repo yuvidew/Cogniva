@@ -257,7 +257,7 @@ export const ChatsSection = () => {
 
                         {/* Messages */}
                         <ScrollArea className="flex-1 min-h-0 px-5 py-4">
-                            <div className="flex flex-col gap-4 max-w-3xl">
+                            <div className="flex flex-col gap-4 w-full max-w-3xl">
                                 {messagesLoading ? (
                                     <div className="flex items-center justify-center py-20">
                                         <LoaderIcon className="size-5 animate-spin text-muted-foreground" />
@@ -266,31 +266,31 @@ export const ChatsSection = () => {
                                     messages.map((msg) => (
                                         <div
                                             key={msg.id}
-                                            className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+                                            className={`flex gap-3 w-full min-w-0 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
                                         >
                                             <Avatar className="size-8 flex-none mt-0.5">
                                                 <AvatarFallback className={`text-xs font-semibold ${msg.role === 'assistant' ? 'bg-primary/10 text-primary' : 'bg-muted'}`}>
                                                     {msg.role === 'assistant' ? 'AI' : 'U'}
                                                 </AvatarFallback>
                                             </Avatar>
-                                            <div className={`flex flex-col gap-1 max-w-[80%] ${msg.role === 'user' ? 'items-end' : ''}`}>
-                                                <div className={`rounded-xl px-4 py-2.5 text-sm leading-relaxed ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                                            <div className={`flex flex-col gap-1 min-w-0 max-w-[80%] overflow-hidden ${msg.role === 'user' ? 'items-end' : ''}`}>
+                                                <div className={`rounded-xl px-4 py-2.5 text-sm leading-relaxed wrap-break-word overflow-hidden max-w-full ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                                     {msg.role === 'assistant' ? (
                                                         <ReactMarkdown
                                                             components={{
-                                                                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                                                p: ({ children }) => <p className="mb-2 last:mb-0 wrap-break-word">{children}</p>,
                                                                 strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
                                                                 ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
                                                                 ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
-                                                                li: ({ children }) => <li>{children}</li>,
-                                                                code: ({ children }) => <code className="bg-black/10 dark:bg-white/10 rounded px-1 py-0.5 font-mono text-xs">{children}</code>,
-                                                                pre: ({ children }) => <pre className="bg-black/10 dark:bg-white/10 rounded p-2 my-2 overflow-x-auto font-mono text-xs">{children}</pre>,
+                                                                li: ({ children }) => <li className="wrap-break-word">{children}</li>,
+                                                                code: ({ children }) => <code className="bg-black/10 dark:bg-white/10 rounded px-1 py-0.5 font-mono text-xs break-all">{children}</code>,
+                                                                pre: ({ children }) => <pre className="bg-black/10 dark:bg-white/10 rounded p-2 my-2 overflow-x-auto max-w-full font-mono text-xs">{children}</pre>,
                                                             }}
                                                         >
                                                             {msg.content}
                                                         </ReactMarkdown>
                                                     ) : (
-                                                        msg.content
+                                                        <span className="whitespace-pre-wrap wrap-break-word">{msg.content}</span>
                                                     )}
                                                 </div>
                                                 <span className="text-[11px] text-muted-foreground px-1">
