@@ -12,37 +12,7 @@ import { google } from '@ai-sdk/google';
 import { generateText } from 'ai';
 
 export const agentByIdRouter = createTRPCRouter({
-    startVideoProcessing: premiumProcedure
-        // .input(z.object({ id: z.string(), chatId: z.string(), videoUrl: z.string() }))
-        .mutation(async () => {
-            console.log("start processing");
-            const result = await generateText({
-                model: google('gemini-2.5-flash'),
-                messages: [
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                type: 'text',
-                                text: 'Summarize this video',
-                            },
-                            {
-                                type: 'file',
-                                data: 'https://www.youtube.com/watch?v=YipDKQ1Y8XI&t=3s',
-                                mediaType: 'video/mp4',
-                            },
-
-                        ],
-                    },
-                ],
-            });
-
-            console.log("processing complete");
-
-            console.log("ai result", result);
-
-            return result;
-        }),
+    // startVideoProcessing is now replaced by processVideoUrl endpoint below
     getOne: premiumProcedure
         .input(z.object({ id: z.string() }))
         .query(async ({ ctx, input }) => {
@@ -65,7 +35,7 @@ export const agentByIdRouter = createTRPCRouter({
 
             if (!agent) return null;
 
-            const [chatsThisMonth, chatsLastMonth, messagesThisMonth, filesCount] = await Promise.all([
+            const [chatsThisMonth, chatsLastMonth, messagesThisMonth, filesCount, imagesCount, videosCount] = await Promise.all([
                 prisma.chat.count({
                     where: {
                         agentId: input.id,
@@ -89,6 +59,18 @@ export const agentByIdRouter = createTRPCRouter({
                         agentId: input.id,
                     },
                 }),
+                prisma.processedImage.count({
+                    where: {
+                        agentId: input.id,
+                        userId: ctx.auth.user.id,
+                    },
+                }),
+                prisma.processedVideo.count({
+                    where: {
+                        agentId: input.id,
+                        userId: ctx.auth.user.id,
+                    },
+                }),
             ]);
 
             const totalChats = agent._count.chats;
@@ -106,6 +88,8 @@ export const agentByIdRouter = createTRPCRouter({
                     chatGrowthPercent,
                     messagesThisMonth,
                     filesCount,
+                    imagesCount,
+                    videosCount,
                 },
             };
         }),
@@ -119,31 +103,85 @@ export const agentByIdRouter = createTRPCRouter({
                 },
                 select: {
                     systemPrompt: true,
+                    fileUploadEnabled: true,
+                    imageProcessingEnabled: true,
+                    videoProcessingEnabled: true,
                 },
             });
 
             if (!agent) return null;
 
-            const knowledgeBaseFiles = await prisma.fileUpload.findMany({
-                where: {
-                    agentId: input.id,
-                },
-                select: {
-                    id: true,
-                    fileName: true,
-                    fileSize: true,
-                    mimeType: true,
-                    status: true,
-                    createdAt: true,
-                },
-                orderBy: {
-                    createdAt: "asc",
-                },
-            });
+            const [knowledgeBaseFiles, processedImages, processedVideos] = await Promise.all([
+                prisma.fileUpload.findMany({
+                    where: {
+                        agentId: input.id,
+                    },
+                    select: {
+                        id: true,
+                        fileName: true,
+                        fileSize: true,
+                        mimeType: true,
+                        status: true,
+                        createdAt: true,
+                    },
+                    orderBy: {
+                        createdAt: "desc",
+                    },
+                    take: 5, // Limit to 5 for overview
+                }),
+                prisma.processedImage.findMany({
+                    where: {
+                        agentId: input.id,
+                        userId: ctx.auth.user.id,
+                    },
+                    select: {
+                        id: true,
+                        fileName: true,
+                        fileSize: true,
+                        mimeType: true,
+                        status: true,
+                        originalUrl: true,
+                        createdAt: true,
+                    },
+                    orderBy: {
+                        createdAt: "desc",
+                    },
+                    take: 5, // Limit to 5 for overview
+                }),
+                prisma.processedVideo.findMany({
+                    where: {
+                        agentId: input.id,
+                        userId: ctx.auth.user.id,
+                    },
+                    select: {
+                        id: true,
+                        fileName: true,
+                        fileSize: true,
+                        mimeType: true,
+                        status: true,
+                        originalUrl: true,
+                        createdAt: true,
+                    },
+                    orderBy: {
+                        createdAt: "desc",
+                    },
+                    take: 5, // Limit to 5 for overview
+                }),
+            ]);
+
+            // Get total counts
+            const [filesCount, imagesCount, videosCount] = await Promise.all([
+                prisma.fileUpload.count({ where: { agentId: input.id } }),
+                prisma.processedImage.count({ where: { agentId: input.id, userId: ctx.auth.user.id } }),
+                prisma.processedVideo.count({ where: { agentId: input.id, userId: ctx.auth.user.id } }),
+            ]);
 
             return {
                 systemPrompt: agent.systemPrompt,
                 systemPromptCharCount: agent.systemPrompt.length,
+                fileUploadEnabled: agent.fileUploadEnabled,
+                imageProcessingEnabled: agent.imageProcessingEnabled,
+                videoProcessingEnabled: agent.videoProcessingEnabled,
                 knowledgeBase: knowledgeBaseFiles.map((file) => ({
                     id: file.id,
                     fileName: file.fileName,
@@ -152,6 +190,29 @@ export const agentByIdRouter = createTRPCRouter({
                     status: file.status,
                     createdAt: file.createdAt,
                 })),
+                images: processedImages.map((img) => ({
+                    id: img.id,
+                    fileName: img.fileName,
+                    fileSize: img.fileSize,
+                    mimeType: img.mimeType,
+                    status: img.status,
+                    originalUrl: img.originalUrl,
+                    createdAt: img.createdAt,
+                })),
+                videos: processedVideos.map((vid) => ({
+                    id: vid.id,
+                    fileName: vid.fileName,
+                    fileSize: vid.fileSize,
+                    mimeType: vid.mimeType,
+                    status: vid.status,
+                    originalUrl: vid.originalUrl,
+                    createdAt: vid.createdAt,
+                })),
+                counts: {
+                    files: filesCount,
+                    images: imagesCount,
+                    videos: videosCount,
+                },
             };
         }),
     startChat: premiumProcedure
@@ -559,6 +620,163 @@ export const agentByIdRouter = createTRPCRouter({
             }
 
             await prisma.generatedImage.delete({ where: { id: input.imageId } });
+
+            return { success: true };
+        }),
+
+    // ─── Video Processing Endpoints ──────────────────────────────────
+
+    getVideos: premiumProcedure
+        .input(z.object({ id: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const videos = await prisma.processedVideo.findMany({
+                where: {
+                    agentId: input.id,
+                    userId: ctx.auth.user.id,
+                },
+                orderBy: { createdAt: "desc" },
+            });
+            return videos;
+        }),
+
+    uploadVideo: premiumProcedure
+        .input(
+            z.object({
+                id: z.string(),
+                fileName: z.string(),
+                mimeType: z.string(),
+                fileSize: z.number(),
+                fileBase64: z.string(),
+                width: z.number().optional(),
+                height: z.number().optional(),
+                duration: z.number().optional(),
+                processingType: z.string().default("summarize"),
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const agent = await prisma.agent.findFirst({
+                where: { id: input.id, ownerId: ctx.auth.user.id },
+            });
+            if (!agent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
+
+            // Convert base64 → Buffer and upload to Appwrite Storage
+            const buffer = Buffer.from(input.fileBase64, "base64");
+            const { storage } = await createAdminClient();
+
+            const appwriteFile = await storage.createFile(
+                APPWRITER_BUCKET_ID,
+                ID.unique(),
+                InputFile.fromBuffer(buffer, input.fileName),
+                [Permission.read(Role.any())],
+            );
+
+            const fileUrl = `${ENDPOINT}/storage/buckets/${APPWRITER_BUCKET_ID}/files/${appwriteFile.$id}/view?project=${PROJECT_ID}`;
+
+            // Create video record with pending status
+            const processedVideo = await prisma.processedVideo.create({
+                data: {
+                    originalUrl: fileUrl,
+                    fileName: input.fileName,
+                    mimeType: input.mimeType,
+                    fileSize: input.fileSize,
+                    width: input.width,
+                    height: input.height,
+                    duration: input.duration,
+                    processingType: input.processingType,
+                    status: "processing",
+                    userId: ctx.auth.user.id,
+                    agentId: input.id,
+                },
+            });
+
+            // Trigger background job for video processing
+            await inngest.send({
+                name: "agent/video.process",
+                data: {
+                    videoId: processedVideo.id,
+                    videoUrl: fileUrl,
+                    processingType: input.processingType,
+                },
+            });
+
+            return processedVideo;
+        }),
+
+    processVideoUrl: premiumProcedure
+        .input(
+            z.object({
+                id: z.string(),
+                videoUrl: z.string().url("Invalid video URL"),
+                processingType: z.string().default("summarize"),
+            })
+        )
+        .mutation(async ({ ctx, input }) => {
+            const agent = await prisma.agent.findFirst({
+                where: { id: input.id, ownerId: ctx.auth.user.id },
+            });
+            if (!agent) throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
+
+            // Extract filename from URL or use a default
+            const urlObj = new URL(input.videoUrl);
+            let fileName = 'video';
+            
+            // Handle YouTube URLs
+            if (urlObj.hostname.includes('youtube.com') || urlObj.hostname.includes('youtu.be')) {
+                const videoId = urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop();
+                fileName = `youtube-${videoId}`;
+            } else {
+                fileName = urlObj.pathname.split('/').pop() || 'video';
+            }
+
+            // Create video record with processing status
+            const processedVideo = await prisma.processedVideo.create({
+                data: {
+                    originalUrl: input.videoUrl,
+                    fileName,
+                    mimeType: 'video/mp4',
+                    fileSize: 0, // Unknown for URL-based videos
+                    processingType: input.processingType,
+                    status: "processing",
+                    userId: ctx.auth.user.id,
+                    agentId: input.id,
+                },
+            });
+
+            // Trigger background job for video processing
+            await inngest.send({
+                name: "agent/video.process",
+                data: {
+                    videoId: processedVideo.id,
+                    videoUrl: input.videoUrl,
+                    processingType: input.processingType,
+                },
+            });
+
+            return processedVideo;
+        }),
+
+    deleteVideo: premiumProcedure
+        .input(z.object({ id: z.string(), videoId: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            const video = await prisma.processedVideo.findFirst({
+                where: { id: input.videoId, agentId: input.id, userId: ctx.auth.user.id },
+            });
+            if (!video) throw new TRPCError({ code: "NOT_FOUND", message: "Video not found" });
+
+            // Delete from Appwrite storage if it's an uploaded file (not a URL)
+            if (video.originalUrl.includes(APPWRITER_BUCKET_ID)) {
+                try {
+                    const urlMatch = video.originalUrl.match(/\/files\/([^/]+)\//);
+                    if (urlMatch?.[1]) {
+                        const { storage } = await createAdminClient();
+                        await storage.deleteFile(APPWRITER_BUCKET_ID, urlMatch[1]);
+                    }
+                } catch {
+                    // Continue even if storage deletion fails
+                }
+            }
+
+            await prisma.processedVideo.delete({ where: { id: input.videoId } });
 
             return { success: true };
         }),
