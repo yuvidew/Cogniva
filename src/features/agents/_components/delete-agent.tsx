@@ -10,20 +10,35 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Trash2Icon } from "lucide-react";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
+import { useDeleteAgent } from "../hooks/use-agents";
+import { Spinner } from "@/components/ui/spinner";
 
 
 interface DeleteAgentProps {
+    id: string;
     agent_name: string;
     conversation_count?: number;
     file_upload_count?: number;
     children: ReactNode;
 }
 
-export const DeleteAgent = ({ agent_name, children , conversation_count, file_upload_count }: DeleteAgentProps) => {
+export const DeleteAgent = ({ id, agent_name, children , conversation_count, file_upload_count }: DeleteAgentProps) => {
+    const { mutate : onDelete , isPending} = useDeleteAgent();
+
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleDelete = () => {
+        onDelete({ id }, {
+            onSuccess: () => {
+                setIsOpen(false);
+            }
+        });
+    };
+
     return (
-        <AlertDialog>
-            <AlertDialogTrigger asChild>
+        <AlertDialog open={isOpen} >
+            <AlertDialogTrigger asChild onClick={() => setIsOpen(true)}>
                 {children}
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -34,9 +49,9 @@ export const DeleteAgent = ({ agent_name, children , conversation_count, file_up
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction variant={"destructive"}>
-                        <Trash2Icon/> Yes Delete
+                    <AlertDialogCancel onClick={() => setIsOpen(false)}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction variant={"destructive"} onClick={handleDelete}>
+                        {isPending ? <> <Spinner /> Deleting... </> : <> <Trash2Icon /> Yes Delete</>}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,27 @@ import { useParams } from 'next/navigation'
 
 import { formatRelativeDate } from '@/lib/utils'
 import { DeleteChat } from './delete-chat'
+
+/**
+ * Strips markdown code fences that contain markdown content.
+ * This handles cases where AI models wrap markdown in code fences like:
+ * ```markdown ... ``` or the entire response is wrapped.
+ */
+const stripCodeFences = (content: string): string => {
+    let result = content.trim()
+    
+    // First, check if the entire content is wrapped in code fences
+    const fullMatch = result.match(/^```(?:markdown|md|text)?\s*\n([\s\S]*?)\n?```$/i)
+    if (fullMatch) {
+        return fullMatch[1].trim()
+    }
+    
+    // Also strip any internal markdown/md/text code fences (these should be rendered, not shown as code)
+    // This regex finds ```markdown ... ``` blocks and extracts their content
+    result = result.replace(/```(?:markdown|md|text)\s*\n([\s\S]*?)\n?```/gi, '$1')
+    
+    return result
+}
 
 
 
@@ -274,23 +296,47 @@ export const ChatsSection = () => {
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div className={`flex flex-col gap-1 min-w-0 max-w-[80%] overflow-hidden ${msg.role === 'user' ? 'items-end' : ''}`}>
-                                                <div className={`rounded-xl px-4 py-2.5 text-sm leading-relaxed wrap-break-word overflow-hidden max-w-full ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                                                <div className={`rounded-xl px-4 py-2.5 text-sm leading-relaxed overflow-hidden max-w-full ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                                                     {msg.role === 'assistant' ? (
-                                                        <ReactMarkdown
-                                                            components={{
-                                                                p: ({ children }) => <p className="mb-2 last:mb-0 wrap-break-word">{children}</p>,
-                                                                strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                                                                ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
-                                                                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
-                                                                li: ({ children }) => <li className="wrap-break-word">{children}</li>,
-                                                                code: ({ children }) => <code className="bg-black/10 dark:bg-white/10 rounded px-1 py-0.5 font-mono text-xs break-all">{children}</code>,
-                                                                pre: ({ children }) => <pre className="bg-black/10 dark:bg-white/10 rounded p-2 my-2 overflow-x-auto max-w-full font-mono text-xs">{children}</pre>,
-                                                            }}
-                                                        >
-                                                            {msg.content}
-                                                        </ReactMarkdown>
+                                                        <div className="markdown-content">
+                                                            <ReactMarkdown
+                                                                remarkPlugins={[remarkGfm]}
+                                                                components={{
+                                                                    h1: ({ children }) => <h1 className="text-xl font-bold mb-3 mt-4 first:mt-0">{children}</h1>,
+                                                                    h2: ({ children }) => <h2 className="text-lg font-bold mb-2 mt-4 first:mt-0">{children}</h2>,
+                                                                    h3: ({ children }) => <h3 className="text-base font-semibold mb-2 mt-3 first:mt-0">{children}</h3>,
+                                                                    h4: ({ children }) => <h4 className="text-sm font-semibold mb-1 mt-2 first:mt-0">{children}</h4>,
+                                                                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                                                    strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                                                                    em: ({ children }) => <em className="italic">{children}</em>,
+                                                                    ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
+                                                                    ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
+                                                                    li: ({ children }) => <li className="ml-1">{children}</li>,
+                                                                    code: ({ className, children }) => {
+                                                                        const isInline = !className;
+                                                                        return isInline 
+                                                                            ? <code className="bg-black/10 dark:bg-white/10 rounded px-1.5 py-0.5 font-mono text-xs">{children}</code>
+                                                                            : <code className={className}>{children}</code>;
+                                                                    },
+                                                                    pre: ({ children }) => <pre className="bg-black/10 dark:bg-white/10 rounded-lg p-3 my-2 overflow-x-auto font-mono text-xs">{children}</pre>,
+                                                                    hr: () => <hr className="my-4 border-t border-current/20" />,
+                                                                    blockquote: ({ children }) => <blockquote className="border-l-3 border-current/30 pl-3 italic my-2 text-muted-foreground">{children}</blockquote>,
+                                                                    a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">{children}</a>,
+                                                                    img: ({ src, alt }) => (
+                                                                        <img 
+                                                                            src={src} 
+                                                                            alt={alt || 'Generated image'} 
+                                                                            className="max-w-full h-auto rounded-lg my-3 border shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                                                            onClick={() => src && window.open(src, '_blank')}
+                                                                        />
+                                                                    ),
+                                                                }}
+                                                            >
+                                                                {stripCodeFences(msg.content)}
+                                                            </ReactMarkdown>
+                                                        </div>
                                                     ) : (
-                                                        <span className="whitespace-pre-wrap wrap-break-word">{msg.content}</span>
+                                                        <span className="whitespace-pre-wrap break-words">{msg.content}</span>
                                                     )}
                                                 </div>
                                                 <span className="text-[11px] text-muted-foreground px-1">

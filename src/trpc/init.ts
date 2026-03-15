@@ -55,9 +55,19 @@ export const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
 });
 
 export const premiumProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-    const customer = await polarClient.customers.getStateExternal({
-        externalId: ctx.auth.user.id,
-    });
+    let customer;
+    
+    try {
+        customer = await polarClient.customers.getStateExternal({
+            externalId: ctx.auth.user.id,
+        });
+    } catch (error) {
+        // Customer doesn't exist in Polar yet - they need to subscribe first
+        throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Premium subscription required",
+        });
+    }
 
     if (!customer.activeSubscriptions?.length || customer.activeSubscriptions[0].status !== "active") {
         throw new TRPCError({
