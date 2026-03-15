@@ -17,9 +17,20 @@ export const agentRouter = createTRPCRouter({
                 memoryEnabled: z.boolean().default(false),
                 webSearchEnabled: z.boolean().default(false),
                 fileUploadEnabled: z.boolean().default(false),
+                imageProcessingEnabled: z.boolean().default(false),
+                videoProcessingEnabled: z.boolean().default(false),
                 strictMode: z.boolean().default(false),
                 isActive: z.boolean().default(true),
-            })
+            }).refine(
+                (data) => {
+                    const enabledCount = [data.fileUploadEnabled, data.imageProcessingEnabled, data.videoProcessingEnabled].filter(Boolean).length;
+                    return enabledCount <= 1;
+                },
+                {
+                    message: "Only one of File Upload, Image Processing, or Video Processing can be enabled at a time",
+                    path: ["fileUploadEnabled"],
+                }
+            )
         )
         .mutation(async ({ ctx, input }) => {
             const {
@@ -32,6 +43,8 @@ export const agentRouter = createTRPCRouter({
                 memoryEnabled,
                 webSearchEnabled,
                 fileUploadEnabled,
+                imageProcessingEnabled,
+                videoProcessingEnabled,
                 strictMode,
                 isActive,
             } = input;
@@ -47,6 +60,8 @@ export const agentRouter = createTRPCRouter({
                     memoryEnabled,
                     webSearchEnabled,
                     fileUploadEnabled,
+                    imageProcessingEnabled,
+                    videoProcessingEnabled,
                     strictMode,
                     isActive,
                     ownerId: ctx.auth.user.id,
@@ -150,9 +165,20 @@ export const agentRouter = createTRPCRouter({
                 memoryEnabled: z.boolean().optional(),
                 webSearchEnabled: z.boolean().optional(),
                 fileUploadEnabled: z.boolean().optional(),
+                imageProcessingEnabled: z.boolean().optional(),
+                videoProcessingEnabled: z.boolean().optional(),
                 strictMode: z.boolean().optional(),
                 isActive: z.boolean().optional(),
-            })
+            }).refine(
+                (data) => {
+                    const enabledCount = [data.fileUploadEnabled, data.imageProcessingEnabled, data.videoProcessingEnabled].filter(Boolean).length;
+                    return enabledCount <= 1;
+                },
+                {
+                    message: "Only one of File Upload, Image Processing, or Video Processing can be enabled at a time",
+                    path: ["fileUploadEnabled"],
+                }
+            )
         )
         .mutation(async ({ ctx, input }) => {
             const { id, ...data } = input;

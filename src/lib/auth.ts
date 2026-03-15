@@ -16,7 +16,8 @@ export const auth = betterAuth({
     plugins: [
         polar({
             client: polarClient,
-            createCustomerOnSignUp : true,
+            // Create customer in Polar on sign up for checkout flow
+            createCustomerOnSignUp: true,
             use: [
                 checkout({
                     products : [

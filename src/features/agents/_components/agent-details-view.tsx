@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowLeftIcon, MessageCircleIcon, LayoutGridIcon, FileTextIcon, CogIcon, SquarePenIcon, Trash2Icon,  } from 'lucide-react'
+import { ArrowLeftIcon, MessageCircleIcon, LayoutGridIcon, FileTextIcon, CogIcon, SquarePenIcon, Trash2Icon, VideoIcon, ImageIcon,  } from 'lucide-react'
 import Link from 'next/link'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -18,14 +18,48 @@ import { ErrorView } from '@/components/entity-components/error-view'
 import { LoadingView } from '@/components/entity-components/loading-view'
 import { useSuspenseAgent } from '../hooks/use-agents'
 import { cn, formatDate } from '@/lib/utils'
+import { VideosSection } from './videos-section'
+import { ImageSection } from './images-section'
+import { AgentModelProvider } from '@/generated/prisma/enums'
 
 export const AgentErrorView = () => <ErrorView  message="Failed to load agent." />;
 
 export const AgentLoadingView = () => <LoadingView message="Loading agent..." />;
 
+interface AgentDetailsViewProps {
+    data : {
+    id: string;
+    createdAt: string;
+    updatedAt: string;
+    name: string;
+    description: string;
+    avatar: string | null;
+    systemPrompt: string;
+    model: AgentModelProvider;
+    temperature: number;
+    memoryEnabled: boolean;
+    webSearchEnabled: boolean;
+    fileUploadEnabled: boolean;
+    imageProcessingEnabled: boolean;
+    videoProcessingEnabled: boolean;
+    strictMode: boolean;
+    isActive: boolean;
+    ownerId: string;
+    _count: {
+        chats: number;
+    };
+    stats: {
+        totalChats: number;
+        chatsThisMonth: number;
+        chatsLastMonth: number;
+        chatGrowthPercent: number | null;
+        messagesThisMonth: number;
+        filesCount: number;
+    };
+}
+}
 
-const AgentDetailsSection = () => {
-    const {data} = useSuspenseAgent();
+const AgentDetailsSection = ({data}: AgentDetailsViewProps) => {
 
     const { setTab } = useTabQuery("tab", "overview");
 
@@ -70,7 +104,7 @@ const AgentDetailsSection = () => {
                                     <SquarePenIcon  /> Edit Agent
                                 </Button>
                             </Link>
-                            <DeleteAgent agent_name={data?.name!} conversation_count={147} file_upload_count={4}>
+                            <DeleteAgent id={data?.id!} agent_name={data?.name!} conversation_count={147} file_upload_count={4}>
                                 <Button variant={"destructive"} size={"sm"}>
                                     <Trash2Icon /> Delete
                                 </Button>
@@ -126,7 +160,12 @@ const AgentDetailsSection = () => {
     )
 }
 
-const DetailsTabs = () => {
+interface DetailsTabsProps {
+    fileUploadEnabled: boolean;
+    imageProcessingEnabled: boolean;
+    videoProcessingEnabled: boolean;
+}
+const DetailsTabs = ({ fileUploadEnabled, imageProcessingEnabled, videoProcessingEnabled }: DetailsTabsProps) => {
     const { tab, setTab } = useTabQuery("tab", "overview");
 
 
@@ -134,7 +173,9 @@ const DetailsTabs = () => {
     const tabList = [
         { value: "overview", label: "Overview", icon: LayoutGridIcon  },
         { value: "chats", label: "Chats", icon: MessageCircleIcon  },
-        { value: "files", label: "Files", icon: FileTextIcon  },
+        { value: "files", label: "Files", icon: FileTextIcon, isActive : fileUploadEnabled  },
+        { value: "videos", label: "Videos", icon: VideoIcon, isActive : videoProcessingEnabled  },
+        { value: "images", label: "Images", icon: ImageIcon, isActive : imageProcessingEnabled  },
         { value: "settings", label: "Update", icon: CogIcon  },
     ]
     return (
@@ -147,7 +188,7 @@ const DetailsTabs = () => {
                         <TabsTrigger
                             key={tab.value}
                             value={tab.value}
-                            className="flex-none px-8 py-3 shadow-none! rounded-none outline-none bg-transparent! text-sm font-semibold border-b-2 border-transparent! data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-b-none data-[state=active]:border-b-primary! data-[state=active]:text-primary! "
+                            className={`flex-none px-8 py-3 shadow-none! rounded-none outline-none bg-transparent! text-sm font-semibold border-b-2 border-transparent! data-[state=inactive]:text-muted-foreground data-[state=inactive]:border-b-none data-[state=active]:border-b-primary! data-[state=active]:text-primary! ${tab.isActive === false ? "opacity-50 cursor-not-allowed hidden" : ""}`}
                         >
                             <Icon className="size-4 " />
                             {tab.label}
@@ -170,12 +211,24 @@ const DetailsTabs = () => {
                 <TabsContent value="settings" className="py-4 px-6 ">
                     <UpdateSection/>
                 </TabsContent>
+                <TabsContent value="videos" className="py-4 px-6 ">
+                    <VideosSection/>
+                </TabsContent>
+                <TabsContent value="images" className="py-4 px-6 ">
+                    <ImageSection/>
+                </TabsContent>
             </Tabs>
         </Card>
     )
 }
 
 export const AgentDetailsView = () => {
+    const {data} = useSuspenseAgent();
+
+    if (!data) {
+        return <AgentErrorView />;
+    }
+
     return (
         <main className='flex flex-1 flex-col gap-5'>
             <Link href="/agents" prefetch className='flex items-center gap-1 text-sm text-primary hover:underline'>
@@ -183,11 +236,11 @@ export const AgentDetailsView = () => {
             </Link>
 
             {/* Start: Agent Details Section */}
-            <AgentDetailsSection />
+            <AgentDetailsSection data={data} />
             {/* End: Agent Details Section */}
 
             {/* Start: Details Tabs */}
-            <DetailsTabs />
+            <DetailsTabs fileUploadEnabled={data?.fileUploadEnabled} imageProcessingEnabled={data?.imageProcessingEnabled} videoProcessingEnabled={data?.videoProcessingEnabled} />
             {/* End: Details Tabs */}
         </main>
     )

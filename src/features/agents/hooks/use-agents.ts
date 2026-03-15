@@ -1,7 +1,7 @@
 import { useTRPC } from "@/trpc/client";
 import { useAgentsParams } from "./use-agents-params";
 import { useMutation, useQuery, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useState, useEffect, useRef, useCallback } from "react";
 
@@ -237,6 +237,143 @@ export const useDeleteFile = () => {
         },
         onError: (error) => {
             toast.error(error.message || "Failed to delete file");
+        },
+    });
+};
+
+
+/** Hook to start video processing */
+export const useStartVideoProcessing = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        ...trpc.agentById.startVideoProcessing.mutationOptions(),
+        onSuccess: () => {
+            queryClient.invalidateQueries(trpc.agentById.getOne.queryOptions({ id }));
+            toast.success("Video processing started");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to start video processing");
+        },
+    });
+};
+
+/** Hook to delete an agent */
+export const useDeleteAgent = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    const navigate = useRouter()
+
+    return useMutation({
+        ...trpc.agentById.delete.mutationOptions(),
+        onSuccess: () => {
+            queryClient.invalidateQueries(trpc.agentById.getOne.queryOptions({ id }));
+            queryClient.invalidateQueries(trpc.agentById.getOverView.queryOptions({ id }));
+            queryClient.invalidateQueries(trpc.agent.getMany.queryOptions({}));
+            toast.success("Agent deleted successfully");
+
+            navigate.push("/agents");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to delete agent");
+        },
+    });
+};
+
+// ─── Image Processing Hooks ──────────────────────────────────────
+
+/** Hook to fetch all processed images for an agent */
+export const useAgentImages = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+
+    return useQuery(trpc.agentById.getImages.queryOptions({ id }));
+};
+
+/** Hook to upload an image for processing */
+export const useUploadImage = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        ...trpc.agentById.uploadImage.mutationOptions(),
+        onSuccess: () => {
+            queryClient.invalidateQueries(trpc.agentById.getImages.queryOptions({ id }));
+            queryClient.invalidateQueries(trpc.agentById.getOne.queryOptions({ id }));
+            toast.success("Image uploaded successfully");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to upload image");
+        },
+    });
+};
+
+/** Hook to delete a processed image */
+export const useDeleteImage = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        ...trpc.agentById.deleteImage.mutationOptions(),
+        onSuccess: () => {
+            queryClient.invalidateQueries(trpc.agentById.getImages.queryOptions({ id }));
+            queryClient.invalidateQueries(trpc.agentById.getOne.queryOptions({ id }));
+            toast.success("Image deleted");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to delete image");
+        },
+    });
+};
+
+// ─── Image Generation Hooks ──────────────────────────────────────
+
+/** Hook to fetch all generated images for an agent */
+export const useAgentGeneratedImages = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+
+    return useQuery(trpc.agentById.getGeneratedImages.queryOptions({ id }));
+};
+
+/** Hook to generate an image using AI */
+export const useGenerateImage = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        ...trpc.agentById.generateImage.mutationOptions(),
+        onSuccess: () => {
+            queryClient.invalidateQueries(trpc.agentById.getGeneratedImages.queryOptions({ id }));
+            toast.success("Image generation started");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to generate image");
+        },
+    });
+};
+
+/** Hook to delete a generated image */
+export const useDeleteGeneratedImage = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        ...trpc.agentById.deleteGeneratedImage.mutationOptions(),
+        onSuccess: () => {
+            queryClient.invalidateQueries(trpc.agentById.getGeneratedImages.queryOptions({ id }));
+            toast.success("Generated image deleted");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to delete generated image");
         },
     });
 };

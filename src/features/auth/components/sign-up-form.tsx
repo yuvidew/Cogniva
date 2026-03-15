@@ -59,13 +59,13 @@ export const SignupForm = ({
             name: values.name,
             email: values.email,
             password: values.password,
-            callbackURL : "/"
+            callbackURL : "/subscribe"
         },
         {
             onSuccess: () => {
                 toast.success("Sign up successful! Please check your email to verify your account.");
                 form.reset();
-                router.push("/");
+                router.push("/subscribe");
             },
             onError: (err) => {
                 toast.error(err.error.message || "Sign up failed. Please try again.");

@@ -1,11 +1,11 @@
 import { AppSidebar } from '@/components/sidebar/app-sidebar'
 import { SiteHeader } from '@/components/sidebar/site-header'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
-import { requireAuth } from '@/lib/auth-utils'
+import { requirePremium } from '@/lib/auth-utils'
 import React, { ReactNode } from 'react'
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const session = await requireAuth()
+  const session = await requirePremium()
 
   return (
     <SidebarProvider

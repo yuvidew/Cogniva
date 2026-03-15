@@ -94,8 +94,17 @@ export const UpdateSection = () => {
     /** Whether the Files tab is shown and users can upload to the knowledge base */
     const [fileUploads, setFileUploads] = useState(agent?.fileUploadEnabled ?? false)
 
+    /** Whether the agent can process and analyze images */
+    const [imageProcessing, setImageProcessing] = useState(agent?.imageProcessingEnabled ?? false)
+
+    /** Whether the agent can process and analyze videos */
+    const [videoProcessing, setVideoProcessing] = useState(agent?.videoProcessingEnabled ?? false)
+
     /** Whether the agent is allowed to run web searches */
     const [webSearch, setWebSearch] = useState(agent?.webSearchEnabled ?? false)
+
+    /** Whether the agent can generate images from text prompts */
+    const [imageGeneration, setImageGeneration] = useState(agent?.imageGenerationEnabled ?? false)
 
     /**
      * Sync effect — re-initialises all form state if the fetched agent data
@@ -112,7 +121,10 @@ export const UpdateSection = () => {
         setTemperature([agent.temperature])
         setAgentActive(agent.isActive)
         setFileUploads(agent.fileUploadEnabled)
+        setImageProcessing(agent.imageProcessingEnabled)
+        setVideoProcessing(agent.videoProcessingEnabled)
         setWebSearch(agent.webSearchEnabled)
+        setImageGeneration(agent.imageGenerationEnabled)
     }, [agent])
 
     // ── Handlers ───────────────────────────────────────────────────────────
@@ -131,7 +143,10 @@ export const UpdateSection = () => {
         setTemperature([agent.temperature])
         setAgentActive(agent.isActive)
         setFileUploads(agent.fileUploadEnabled)
+        setImageProcessing(agent.imageProcessingEnabled)
+        setVideoProcessing(agent.videoProcessingEnabled)
         setWebSearch(agent.webSearchEnabled)
+        setImageGeneration(agent.imageGenerationEnabled)
     }, [agent])
 
     /**
@@ -150,9 +165,12 @@ export const UpdateSection = () => {
             temperature: temperature[0],
             isActive: agentActive,
             fileUploadEnabled: fileUploads,
+            imageProcessingEnabled: imageProcessing,
+            videoProcessingEnabled: videoProcessing,
             webSearchEnabled: webSearch,
+            imageGenerationEnabled: imageGeneration,
         })
-    }, [agent, updateAgent, agentName, description, selectedAvatar, systemPrompt, aiModel, temperature, agentActive, fileUploads, webSearch])
+    }, [agent, updateAgent, agentName, description, selectedAvatar, systemPrompt, aiModel, temperature, agentActive, fileUploads, imageProcessing, videoProcessing, webSearch, imageGeneration])
 
     return (
         <section className="flex flex-col gap-8 border p-4 rounded-md">
@@ -304,6 +322,9 @@ export const UpdateSection = () => {
 
             {/* Toggle Settings */}
             <div className="flex flex-col gap-5">
+                <p className="text-xs text-muted-foreground italic">
+                    Note: Only one of File Uploads, Image Processing, or Video Processing can be enabled at a time.
+                </p>
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm font-semibold">File Uploads Enabled</p>
@@ -311,7 +332,52 @@ export const UpdateSection = () => {
                             Show Files tab and allow users to upload to knowledge base
                         </p>
                     </div>
-                    <Switch checked={fileUploads} onCheckedChange={setFileUploads} />
+                    <Switch 
+                        checked={fileUploads} 
+                        onCheckedChange={(checked) => {
+                            setFileUploads(checked)
+                            if (checked) {
+                                setImageProcessing(false)
+                                setVideoProcessing(false)
+                            }
+                        }} 
+                    />
+                </div>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-semibold">Image Processing</p>
+                        <p className="text-xs text-muted-foreground">
+                            Enable AI to analyze and understand images
+                        </p>
+                    </div>
+                    <Switch 
+                        checked={imageProcessing} 
+                        onCheckedChange={(checked) => {
+                            setImageProcessing(checked)
+                            if (checked) {
+                                setFileUploads(false)
+                                setVideoProcessing(false)
+                            }
+                        }} 
+                    />
+                </div>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-semibold">Video Processing</p>
+                        <p className="text-xs text-muted-foreground">
+                            Enable AI to analyze and summarize videos
+                        </p>
+                    </div>
+                    <Switch 
+                        checked={videoProcessing} 
+                        onCheckedChange={(checked) => {
+                            setVideoProcessing(checked)
+                            if (checked) {
+                                setFileUploads(false)
+                                setImageProcessing(false)
+                            }
+                        }} 
+                    />
                 </div>
                 <div className="flex items-center justify-between">
                     <div>
@@ -321,6 +387,15 @@ export const UpdateSection = () => {
                         </p>
                     </div>
                     <Switch checked={webSearch} onCheckedChange={setWebSearch} />
+                </div>
+                <div className="flex items-center justify-between opacity-70 cursor-not-allowed">
+                    <div>
+                        <p className="text-sm font-semibold ">Image Generation</p>
+                        <p className="text-xs text-muted-foreground">
+                            coming soon: allow agent to generate images from text prompts
+                        </p>
+                    </div>
+                    <Switch   disabled  checked={imageGeneration} onCheckedChange={setImageGeneration} />
                 </div>
             </div>
 

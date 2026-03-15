@@ -66,8 +66,21 @@ export const agentFormSchema = z.object({
 
     fileUploadEnabled: z.boolean(),
 
+    imageProcessingEnabled: z.boolean(),
+
+    videoProcessingEnabled: z.boolean(),
+
     strictMode: z.boolean(),
-});
+}).refine(
+    (data) => {
+        const enabledCount = [data.fileUploadEnabled, data.imageProcessingEnabled, data.videoProcessingEnabled].filter(Boolean).length;
+        return enabledCount <= 1;
+    },
+    {
+        message: "Only one of File Upload, Image Processing, or Video Processing can be enabled at a time",
+        path: ["fileUploadEnabled"],
+    }
+);
 
 const avatarEmoji = ["🤖", "👩‍💻", "🧠", "🚀", "💡", "📊", "🎯", "🔍", "⚡", "🌟"]
 
@@ -112,6 +125,8 @@ export const AgentForm = () => {
             memoryEnabled: false,
             webSearchEnabled: false,
             fileUploadEnabled: false,
+            imageProcessingEnabled: false,
+            videoProcessingEnabled: false,
             strictMode: false,
         },
     })
@@ -410,6 +425,9 @@ export const AgentForm = () => {
                                         {/* Capabilities */}
                                         <div className="flex flex-col gap-1">
                                             <p className="text-sm font-medium">Capabilities</p>
+                                            <p className="text-xs text-muted-foreground italic">
+                                                Note: Only one of File Uploads, Image Processing, or Video Processing can be enabled at a time.
+                                            </p>
                                         </div>
 
                                         {/* Web Search */}
@@ -457,17 +475,80 @@ export const AgentForm = () => {
                                             control={form.control}
                                             name="fileUploadEnabled"
                                             render={({ field }) => (
+                                                <FormItem className="flex flex-col gap-2 border-b pb-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <FormLabel className="font-medium">File Uploads</FormLabel>
+                                                            <p className="text-sm text-muted-foreground">Let users attach documents and images in chat</p>
+                                                        </div>
+                                                        <FormControl>
+                                                            <Switch
+                                                                checked={field.value}
+                                                                onCheckedChange={(checked) => {
+                                                                    field.onChange(checked)
+                                                                    if (checked) {
+                                                                        form.setValue("imageProcessingEnabled", false)
+                                                                        form.setValue("videoProcessingEnabled", false)
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </FormControl>
+                                                    </div>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        {/* Image Processing */}
+                                        <FormField
+                                            control={form.control}
+                                            name="imageProcessingEnabled"
+                                            render={({ field }) => (
                                                 <FormItem className="flex items-center justify-between border-b pb-4">
                                                     <div className="flex flex-col gap-0.5">
-                                                        <FormLabel className="font-medium">File Uploads</FormLabel>
-                                                        <p className="text-sm text-muted-foreground">Let users attach documents and images in chat</p>
+                                                        <FormLabel className="font-medium">Image Processing</FormLabel>
+                                                        <p className="text-sm text-muted-foreground">Enable AI to analyze and understand images</p>
                                                     </div>
                                                     <FormControl>
                                                         <Switch
                                                             checked={field.value}
-                                                            onCheckedChange={field.onChange}
+                                                            onCheckedChange={(checked) => {
+                                                                field.onChange(checked)
+                                                                if (checked) {
+                                                                    form.setValue("fileUploadEnabled", false)
+                                                                    form.setValue("videoProcessingEnabled", false)
+                                                                }
+                                                            }}
                                                         />
                                                     </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        {/* Video Processing */}
+                                        <FormField
+                                            control={form.control}
+                                            name="videoProcessingEnabled"
+                                            render={({ field }) => (
+                                                <FormItem className="flex items-center justify-between border-b pb-4">
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <FormLabel className="font-medium">Video Processing</FormLabel>
+                                                        <p className="text-sm text-muted-foreground">Enable AI to analyze and summarize videos</p>
+                                                    </div>
+                                                    <FormControl>
+                                                        <Switch
+                                                            checked={field.value}
+                                                            onCheckedChange={(checked) => {
+                                                                field.onChange(checked)
+                                                                if (checked) {
+                                                                    form.setValue("fileUploadEnabled", false)
+                                                                    form.setValue("imageProcessingEnabled", false)
+                                                                }
+                                                            }}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
                                                 </FormItem>
                                             )}
                                         />

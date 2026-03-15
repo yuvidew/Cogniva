@@ -15,6 +15,10 @@ export const useCreateAgent = () => {
             );
 
             queryClient.invalidateQueries(
+                trpc.dashboard.getStats.queryOptions()
+            );
+
+            queryClient.invalidateQueries(
                 trpc.agent.getOne.queryOptions({ id: data.id })
             );
         },
@@ -25,3 +29,4 @@ export const useCreateAgent = () => {
 
     }));
 }
+

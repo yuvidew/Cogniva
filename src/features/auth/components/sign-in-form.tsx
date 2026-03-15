@@ -53,7 +53,7 @@ export const SigninForm = ({
             onSuccess: () => {
                 toast.success("Sign in successful!");
                 form.reset();
-                router.push("/");
+                router.push("/subscribe");
             },
             onError: (err) => {
                 toast.error(err.error.message || "Sign in failed. Please try again.");
