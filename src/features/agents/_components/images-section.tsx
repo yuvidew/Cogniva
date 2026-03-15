@@ -1,25 +1,57 @@
 "use client"
 
+/**
+ * @fileoverview ImagesSection Component
+ * 
+ * This module provides a comprehensive image management interface for AI agents.
+ * It supports:
+ * - Direct image file uploads (drag & drop or file picker)
+ * - Image preview and zoom functionality
+ * - AI-powered image analysis and processing
+ * - Image metadata display and management
+ * 
+ * The component integrates with:
+ * - Gemini AI for image analysis
+ * - Appwrite for file storage
+ * - Inngest for background job processing
+ * - tRPC for API communication
+ */
+
+// ============================================================================
+// IMPORTS
+// ============================================================================
+
+// UI Components
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+
+// Icons from Lucide React
 import { 
-    ImageIcon, 
-    LoaderIcon, 
-    PlusIcon, 
-    Trash2Icon, 
-    UploadCloudIcon, 
-    FolderOpenIcon,
-    ZoomInIcon,
+    ImageIcon,           // Default image placeholder and section icon
+    LoaderIcon,          // Loading spinner for async operations
+    PlusIcon,            // Add/Upload button icon
+    Trash2Icon,          // Delete image icon
+    UploadCloudIcon,     // Upload drop zone icon
+    FolderOpenIcon,      // Empty state icon
+    ZoomInIcon,          // Preview/Zoom image icon
 } from 'lucide-react'
+
+// React hooks
 import { useState, useCallback, useRef } from 'react'
 import { useParams } from 'next/navigation'
+
+// Custom hooks for image operations
 import { 
-    useAgentImages, 
-    useUploadImage, 
-    useDeleteImage, 
+    useAgentImages,      // Fetches list of processed images for the agent
+    useUploadImage,      // Handles image file upload mutation
+    useDeleteImage,      // Handles image deletion mutation
 } from '../hooks/use-agents'
+
+// Utility functions
 import { formatFileSizeInFileSection, formatDateWithMonth } from '@/lib/utils'
+
+// Dialog components for modals
 import {
     Dialog,
     DialogContent,
@@ -27,7 +59,28 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog'
 
-// Local types to avoid deep type instantiation issues
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+/**
+ * ProcessedImageData Interface
+ * 
+ * Local type definition to avoid TypeScript deep type instantiation issues
+ * that can occur with complex Prisma-generated types.
+ * 
+ * @property {string} id - Unique identifier for the image record
+ * @property {string} originalUrl - URL to the original uploaded image
+ * @property {string|null} processedUrl - URL to any post-processed image (if applicable)
+ * @property {string} fileName - Original filename of the uploaded image
+ * @property {string} mimeType - Image MIME type (e.g., 'image/png', 'image/jpeg')
+ * @property {number} fileSize - File size in bytes
+ * @property {number|null} width - Image width in pixels
+ * @property {number|null} height - Image height in pixels
+ * @property {string} processingType - Type of AI processing (e.g., 'analyze')
+ * @property {string} status - Processing status: 'pending', 'processing', 'completed', 'failed'
+ * @property {Date|string} createdAt - Timestamp when image was added
+ */
 interface ProcessedImageData {
     id: string
     originalUrl: string
@@ -42,18 +95,54 @@ interface ProcessedImageData {
     createdAt: Date | string
 }
 
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
 /**
- * ALLOWED_IMAGE_EXTENSIONS — whitelist of image formats
+ * ALLOWED_IMAGE_EXTENSIONS
+ * 
+ * Whitelist of supported image file formats for upload.
+ * These formats are widely supported and can be processed by Gemini AI.
+ * 
+ * Supported formats:
+ * - .jpg/.jpeg - JPEG format (most common for photos)
+ * - .png       - PNG format (supports transparency)
+ * - .gif       - GIF format (supports animation)
+ * - .webp      - WebP format (modern, efficient compression)
+ * - .svg       - SVG format (vector graphics)
  */
 const ALLOWED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg']
 
 /**
- * MAX_IMAGE_SIZE — maximum allowed size per image (10 MB)
+ * MAX_IMAGE_SIZE
+ * 
+ * Maximum allowed file size for image uploads: 10 MB (in bytes).
+ * This limit helps prevent:
+ * - Server memory issues during upload processing
+ * - Long upload times on slow connections
+ * - Excessive storage costs
+ * 
+ * Calculation: 10 MB = 10 * 1024 * 1024 bytes = 10,485,760 bytes
  */
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024
 
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
 /**
- * Convert file to base64 string
+ * Converts a File object to a Base64-encoded string.
+ * 
+ * This is necessary for uploading image files through the API,
+ * as binary data needs to be serialized for JSON transmission.
+ * 
+ * @param {File} file - The file to convert
+ * @returns {Promise<string>} Base64-encoded file content (without data URI prefix)
+ * 
+ * @example
+ * const base64 = await toBase64(imageFile);
+ * // Returns: "iVBORw0KGgoAAAANSUhEUgAA..." (raw base64 without prefix)
  */
 const toBase64 = (file: File): Promise<string> => 
     new Promise((resolve, reject) => {
@@ -61,7 +150,7 @@ const toBase64 = (file: File): Promise<string> =>
         reader.readAsDataURL(file)
         reader.onload = () => {
             const result = reader.result as string
-            // Remove the data:image/xxx;base64, prefix
+            // Remove the data:image/xxx;base64, prefix to get raw base64
             const base64 = result.split(',')[1]
             resolve(base64)
         }
@@ -69,42 +158,159 @@ const toBase64 = (file: File): Promise<string> =>
     })
 
 /**
- * Get file extension from filename
+ * Extracts the file extension from a filename.
+ * 
+ * Handles edge cases like files with multiple dots or no extension.
+ * Returns lowercase extension WITHOUT leading dot (differs from video version).
+ * 
+ * @param {string} fileName - The filename to parse
+ * @returns {string} Lowercase file extension without dot (e.g., 'png') or empty string
+ * 
+ * @example
+ * getFileExt('photo.PNG')       // Returns: 'png'
+ * getFileExt('my.photo.jpeg')   // Returns: 'jpeg'
+ * getFileExt('noextension')     // Returns: ''
  */
 const getFileExt = (fileName: string): string => {
     const parts = fileName.split('.')
     return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : ''
 }
 
+// ============================================================================
+// INTERNAL COMPONENTS
+// ============================================================================
+
 /**
- * ImageUploadSection — handles image uploads for processing
+ * ImageUploadSection Component
+ * 
+ * Internal component that handles the image upload functionality.
+ * Provides:
+ * - Drag-and-drop upload zone
+ * - File picker integration
+ * - Image grid display with status badges
+ * - Preview modal for full-size viewing
+ * - Delete functionality
+ * 
+ * @returns {JSX.Element} The image upload section UI
  */
 const ImageUploadSection = () => {
+    // ========================================================================
+    // ROUTE PARAMETERS
+    // ========================================================================
+    
+    /**
+     * agentId - The unique identifier of the current agent.
+     * Extracted from the URL path parameter /agents/[id]
+     */
     const { id: agentId } = useParams<{ id: string }>()
+    
+    // ========================================================================
+    // REFS
+    // ========================================================================
+    
+    /**
+     * fileInputRef - Reference to the hidden file input element.
+     * Used to programmatically trigger the file picker dialog.
+     */
     const fileInputRef = useRef<HTMLInputElement>(null)
+    
+    // ========================================================================
+    // UI STATE
+    // ========================================================================
+    
+    /**
+     * isDragging - Tracks whether user is dragging files over the drop zone.
+     * Used for visual feedback (border/background color changes).
+     */
     const [isDragging, setIsDragging] = useState(false)
+    
+    /**
+     * previewImage - URL of the image currently being previewed in the dialog.
+     * Set to null when dialog is closed.
+     */
     const [previewImage, setPreviewImage] = useState<string | null>(null)
 
+    // ========================================================================
+    // DATA FETCHING HOOKS
+    // ========================================================================
+    
+    /**
+     * useAgentImages - Fetches the list of processed images for this agent.
+     * 
+     * Returns:
+     * - data: Array of ProcessedImageData objects
+     * - isLoading: Boolean indicating if initial fetch is in progress
+     * 
+     * The hook automatically refetches to show real-time processing status updates.
+     */
     const { data, isLoading } = useAgentImages()
+    
+    /**
+     * images - Type-safe array of processed images.
+     * Provides empty array fallback if data is undefined.
+     */
     const images = (data ?? []) as ProcessedImageData[]
+    
+    // ========================================================================
+    // MUTATION HOOKS
+    // ========================================================================
+    
+    /**
+     * uploadImage - Mutation hook for uploading new image files.
+     * 
+     * Accepts:
+     * - fileName, mimeType, fileSize, fileBase64
+     * - width, height (image dimensions)
+     * - processingType (e.g., 'analyze')
+     * 
+     * On success, triggers background AI processing via Inngest.
+     */
     const uploadImage = useUploadImage()
+    
+    /**
+     * deleteImage - Mutation hook for deleting images.
+     * Removes both the database record and the stored file.
+     */
     const deleteImage = useDeleteImage()
 
+    // ========================================================================
+    // EVENT HANDLERS
+    // ========================================================================
+
+    /**
+     * Processes an array of files for upload.
+     * 
+     * For each file:
+     * 1. Validates file extension against ALLOWED_IMAGE_EXTENSIONS
+     * 2. Validates file size against MAX_IMAGE_SIZE
+     * 3. Converts file to base64 encoding
+     * 4. Extracts image dimensions using browser Image API
+     * 5. Uploads via the uploadImage mutation
+     * 
+     * @param {FileList|null} fileList - List of files from input or drop event
+     */
     const processFiles = useCallback(async (fileList: FileList | null) => {
         if (!fileList) return
         for (let i = 0; i < fileList.length; i++) {
             const file = fileList[i]
+            // Get extension with leading dot for comparison
             const ext = `.${getFileExt(file.name)}`
+            
+            // Skip files with unsupported extensions
             if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) continue
+            
+            // Skip files that exceed size limit
             if (file.size > MAX_IMAGE_SIZE) continue
 
+            // Convert file to base64 for API transmission
             const fileBase64 = await toBase64(file)
 
-            // Get image dimensions
+            // Create Image element to get dimensions
             const img = new Image()
             img.src = `data:${file.type};base64,${fileBase64}`
             await new Promise((resolve) => { img.onload = resolve })
 
+            // Upload image with metadata
             await uploadImage.mutateAsync({
                 id: agentId,
                 fileName: file.name,
@@ -118,23 +324,48 @@ const ImageUploadSection = () => {
         }
     }, [agentId, uploadImage])
 
+    /**
+     * Handles file selection from the file input element.
+     * Processes selected files and resets the input value.
+     * 
+     * @param {React.ChangeEvent<HTMLInputElement>} e - Change event from file input
+     */
     const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         processFiles(e.target.files)
+        // Reset input value to allow re-selecting the same file
         if (fileInputRef.current) fileInputRef.current.value = ''
     }, [processFiles])
 
+    /**
+     * Handles dragover event on the drop zone.
+     * Prevents default behavior and updates dragging state for visual feedback.
+     * 
+     * @param {React.DragEvent} e - Drag event
+     */
     const handleDragOver = useCallback((e: React.DragEvent) => { 
         e.preventDefault()
         e.stopPropagation()
         setIsDragging(true) 
     }, [])
 
+    /**
+     * Handles dragleave event on the drop zone.
+     * Resets the dragging state when cursor leaves the zone.
+     * 
+     * @param {React.DragEvent} e - Drag event
+     */
     const handleDragLeave = useCallback((e: React.DragEvent) => { 
         e.preventDefault()
         e.stopPropagation()
         setIsDragging(false) 
     }, [])
 
+    /**
+     * Handles drop event on the drop zone.
+     * Processes dropped files and resets dragging state.
+     * 
+     * @param {React.DragEvent} e - Drop event containing transferred files
+     */
     const handleDrop = useCallback((e: React.DragEvent) => {
         e.preventDefault()
         e.stopPropagation()
@@ -142,7 +373,15 @@ const ImageUploadSection = () => {
         processFiles(e.dataTransfer.files)
     }, [processFiles])
 
+    /**
+     * Programmatically opens the file picker dialog.
+     * Triggered by clicking the upload button or drop zone.
+     */
     const openFilePicker = () => fileInputRef.current?.click()
+
+    // ========================================================================
+    // RENDER
+    // ========================================================================
 
     return (
         <div className="flex flex-col gap-6">
@@ -309,17 +548,43 @@ const ImageUploadSection = () => {
     )
 }
 
+// ============================================================================
+// EXPORTED COMPONENT
+// ============================================================================
+
 /**
- * ImageSection — main component for image upload and processing
+ * ImageSection Component (Exported)
+ * 
+ * Main wrapper component for the image management section.
+ * Provides consistent styling and section header with icon.
+ * 
+ * This is the component that should be imported and used in parent components.
+ * It wraps the internal ImageUploadSection with proper section styling.
+ * 
+ * @returns {JSX.Element} The complete image management section
+ * 
+ * @example
+ * // In agent details page
+ * import { ImageSection } from './_components/images-section'
+ * 
+ * function AgentPage() {
+ *   return (
+ *     <div>
+ *       <ImageSection />
+ *     </div>
+ *   )
+ * }
  */
 export const ImageSection = () => {
     return (
         <section className="flex flex-col gap-6">
+            {/* Section Header with Icon */}
             <div className="flex items-center gap-2">
                 <ImageIcon className="size-6 text-primary" />
                 <h2 className="text-xl font-bold">Image Management</h2>
             </div>
 
+            {/* Image Upload and Display Section */}
             <ImageUploadSection />
         </section>
     )

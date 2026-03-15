@@ -41,7 +41,7 @@ export const processChatMessage = inngest.createFunction(
       const [agent, history, files, chat] = await Promise.all([
         prisma.agent.findFirstOrThrow({
           where: { id: agentId },
-          select: { systemPrompt: true, temperature: true, imageGenerationEnabled: true, ownerId: true },
+          select: { systemPrompt: true, temperature: true, imageGenerationEnabled: true, videoProcessingEnabled: true, ownerId: true },
         }),
         prisma.chatMessage.findMany({
           where: { chatId },
@@ -106,12 +106,118 @@ export const processChatMessage = inngest.createFunction(
       return false;
     });
 
+    // Step 2b: Detect if user is sharing a video URL for processing
+    const videoUrlMatch = await step.run("detect-video-url", async () => {
+      console.log("[Video Detection] videoProcessingEnabled:", agent.videoProcessingEnabled);
+      
+      if (!agent.videoProcessingEnabled) {
+        console.log("[Video Detection] Video processing is disabled for this agent");
+        return null;
+      }
+
+      // Look for YouTube URLs
+      const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i;
+      const youtubeMatch = userMessageContent.match(youtubeRegex);
+      
+      if (youtubeMatch) {
+        console.log("[Video Detection] YouTube URL detected:", youtubeMatch[0]);
+        return {
+          url: youtubeMatch[0].startsWith('http') ? youtubeMatch[0] : `https://${youtubeMatch[0]}`,
+          type: 'youtube',
+          videoId: youtubeMatch[1],
+        };
+      }
+
+      // Look for direct video file URLs
+      const videoFileRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov|avi|mkv)/i;
+      const videoFileMatch = userMessageContent.match(videoFileRegex);
+      
+      if (videoFileMatch) {
+        console.log("[Video Detection] Direct video URL detected:", videoFileMatch[0]);
+        return {
+          url: videoFileMatch[0],
+          type: 'direct',
+        };
+      }
+
+      console.log("[Video Detection] No video URL found");
+      return null;
+    });
+
     console.log("[Process] isImageRequest:", isImageRequest);
+    console.log("[Process] videoUrlMatch:", videoUrlMatch);
 
     let text: string;
     let generatedImageUrl: string | null = null;
 
-    if (isImageRequest) {
+    if (videoUrlMatch) {
+      console.log("[Process] Starting video processing from chat...");
+      // Process video URL from chat
+      const videoResult = await step.run("process-video-in-chat", async (): Promise<{
+        success: boolean;
+        result?: string;
+        error?: string;
+      }> => {
+        try {
+          // Extract any specific instruction from the message
+          let instruction = userMessageContent
+            .replace(videoUrlMatch.url, '')
+            .trim();
+          
+          // Default to summarize if no specific instruction
+          if (!instruction || instruction.length < 5) {
+            instruction = `Please analyze this video thoroughly and provide a detailed summary.
+
+IMPORTANT: Pay very close attention to:
+1. ALL text that appears on screen (titles, code, terminal output, UI elements, comments)
+2. If it's a programming tutorial, identify the EXACT technologies, frameworks, and libraries shown (read from package.json, imports, code syntax)
+3. Terminal commands and their outputs
+4. Any spoken content and what the presenter specifically says about the technologies being used
+5. Code editor content - read the actual code to identify the language and frameworks
+
+Provide:
+- The main topic and purpose of the video
+- Specific technologies/frameworks demonstrated (be precise, don't guess)
+- Key steps or concepts covered
+- Any important takeaways or conclusions`;
+          }
+
+          const response = await generateText({
+            model: google('gemini-2.5-flash'),
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: instruction,
+                  },
+                  {
+                    type: 'file',
+                    data: videoUrlMatch.url,
+                    mediaType: 'video/mp4',
+                  },
+                ],
+              },
+            ],
+          });
+
+          return { success: true, result: response.text };
+        } catch (error) {
+          console.error("[Video Processing] Error:", error);
+          return { 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Failed to process video' 
+          };
+        }
+      });
+
+      if (videoResult.success && videoResult.result) {
+        text = `## Video Analysis\n\n${videoResult.result}`;
+      } else {
+        text = `I apologize, but I couldn't process the video. Error: ${videoResult.error}\n\nPlease make sure video processing is enabled and the URL is accessible.`;
+      }
+    } else if (isImageRequest) {
       console.log("[Process] Starting image generation...");
       // Step 3a: Generate image using Gemini
       const imageResult = await step.run("generate-image", async (): Promise<{
@@ -314,6 +420,129 @@ export const processChatMessage = inngest.createFunction(
     }
 
     return { success: true, generatedImageUrl };
+  },
+);
+
+/**
+ * Process video using Gemini AI
+ * Supports YouTube URLs and direct video file URLs
+ */
+export const processVideo = inngest.createFunction(
+  { id: "process-video", retries: 2 },
+  { event: "agent/video.process" },
+  async ({ event, step }) => {
+    const { videoId, videoUrl, processingType } = event.data as {
+      videoId: string;
+      videoUrl: string;
+      processingType: string;
+    };
+
+    try {
+      // Step 1: Process the video with Gemini
+      const result = await step.run("analyze-video", async () => {
+        // Build the prompt based on processing type
+        let prompt = '';
+        const baseInstructions = `
+IMPORTANT INSTRUCTIONS:
+- Pay VERY close attention to ALL text appearing on screen (titles, code, terminal commands, UI text, comments)
+- If this is a programming/tech tutorial, identify the EXACT technologies by reading: imports, package.json, file extensions, code syntax, terminal commands
+- Do NOT guess technologies - only report what you can clearly see or hear mentioned
+- Read code comments and variable names for context
+- Note what the presenter specifically says about the technologies being used
+`;
+        
+        switch (processingType) {
+          case 'summarize':
+            prompt = `Please provide a detailed and accurate summary of this video.${baseInstructions}
+
+Include:
+1. Main topic and purpose of the video
+2. Specific technologies, frameworks, libraries, or tools demonstrated (be precise)
+3. Key steps, concepts, or techniques covered
+4. Important takeaways and conclusions`;
+            break;
+          case 'transcribe':
+            prompt = `Please transcribe all spoken content in this video as accurately as possible.${baseInstructions}
+
+Also note any important text that appears on screen (code, commands, titles) in [brackets].`;
+            break;
+          case 'analyze':
+            prompt = `Please provide a comprehensive analysis of this video.${baseInstructions}
+
+Cover:
+1. Visual content and presentation style
+2. All text, code, and commands shown on screen (read them carefully)
+3. Technologies and tools demonstrated (identify precisely from what you see)
+4. The overall theme, purpose, and target audience
+5. Quality and depth of the content`;
+            break;
+          case 'qa':
+            prompt = `Please thoroughly watch this video and be ready to answer questions about it.${baseInstructions}
+
+Start by providing an accurate overview including:
+1. What the video is about
+2. The specific technologies or topics covered
+3. Key points that might be asked about`;
+            break;
+          default:
+            prompt = `Please summarize and describe the content of this video accurately.${baseInstructions}`;
+        }
+
+        const response = await generateText({
+          model: google('gemini-2.5-flash'),
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: prompt,
+                },
+                {
+                  type: 'file',
+                  data: videoUrl,
+                  mediaType: 'video/mp4',
+                },
+              ],
+            },
+          ],
+        });
+
+        return response.text;
+      });
+
+      // Step 2: Update the video record with results
+      await step.run("save-result", async () => {
+        await prisma.processedVideo.update({
+          where: { id: videoId },
+          data: {
+            status: 'completed',
+            metadata: {
+              processingType,
+              result,
+              processedAt: new Date().toISOString(),
+            },
+            updatedAt: new Date(),
+          },
+        });
+      });
+
+      return { success: true, videoId, result };
+    } catch (error) {
+      // Update video record with error
+      await step.run("save-error", async () => {
+        await prisma.processedVideo.update({
+          where: { id: videoId },
+          data: {
+            status: 'failed',
+            errorMessage: error instanceof Error ? error.message : 'Failed to process video',
+            updatedAt: new Date(),
+          },
+        });
+      });
+
+      throw error;
+    }
   },
 );
 

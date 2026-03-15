@@ -53,15 +53,15 @@ export const AgentCard = ({ agent }: AgentCardProps) => {
                 <span className={`size-1.5 rounded-full ${agent.isActive ? "bg-green-500" : "bg-red-500"}`} />
                 {agent.isActive ? "Active" : "Inactive"}
             </Badge>
-            <CardHeader className="px-0 flex flex-row items-center gap-3">
-                <Avatar className="size-10">
+            <CardHeader className="px-0 pr-20 flex flex-row items-center gap-3">
+                <Avatar className="size-10 shrink-0">
                     <AvatarImage src={agent.avatar ?? undefined} alt={agent.name} />
                     <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                         {agent.avatar ? agent.avatar : agent.name.charAt(0).toUpperCase()}
                     </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col gap-1">
-                    <h3 className="font-semibold text-sm leading-none">{agent.name}</h3>
+                <div className="flex flex-col gap-1 min-w-0">
+                    <h3 className="font-semibold text-sm leading-none truncate">{agent.name}</h3>
                 </div>
             </CardHeader>
             <CardContent className="px-0 py-0">

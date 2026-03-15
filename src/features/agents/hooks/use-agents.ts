@@ -242,24 +242,6 @@ export const useDeleteFile = () => {
 };
 
 
-/** Hook to start video processing */
-export const useStartVideoProcessing = () => {
-    const { id } = useParams<{ id: string }>();
-    const trpc = useTRPC();
-    const queryClient = useQueryClient();
-
-    return useMutation({
-        ...trpc.agentById.startVideoProcessing.mutationOptions(),
-        onSuccess: () => {
-            queryClient.invalidateQueries(trpc.agentById.getOne.queryOptions({ id }));
-            toast.success("Video processing started");
-        },
-        onError: (error) => {
-            toast.error(error.message || "Failed to start video processing");
-        },
-    });
-};
-
 /** Hook to delete an agent */
 export const useDeleteAgent = () => {
     const { id } = useParams<{ id: string }>();
@@ -374,6 +356,76 @@ export const useDeleteGeneratedImage = () => {
         },
         onError: (error) => {
             toast.error(error.message || "Failed to delete generated image");
+        },
+    });
+};
+
+// ─── Video Processing Hooks ──────────────────────────────────────
+
+/** Hook to fetch all processed videos for an agent */
+export const useAgentVideos = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+
+    return useQuery({
+        ...trpc.agentById.getVideos.queryOptions({ id }),
+        refetchInterval: 3000, // Auto-refetch every 3 seconds to check processing status
+    });
+};
+
+/** Hook to upload a video for processing */
+export const useUploadVideo = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        ...trpc.agentById.uploadVideo.mutationOptions(),
+        onSuccess: () => {
+            queryClient.invalidateQueries(trpc.agentById.getVideos.queryOptions({ id }));
+            queryClient.invalidateQueries(trpc.agentById.getOne.queryOptions({ id }));
+            toast.success("Video uploaded and processing started");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to upload video");
+        },
+    });
+};
+
+/** Hook to process a video from URL (YouTube, direct link, etc.) */
+export const useProcessVideoUrl = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        ...trpc.agentById.processVideoUrl.mutationOptions(),
+        onSuccess: () => {
+            queryClient.invalidateQueries(trpc.agentById.getVideos.queryOptions({ id }));
+            queryClient.invalidateQueries(trpc.agentById.getOne.queryOptions({ id }));
+            toast.success("Video processing started");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to process video URL");
+        },
+    });
+};
+
+/** Hook to delete a processed video */
+export const useDeleteVideo = () => {
+    const { id } = useParams<{ id: string }>();
+    const trpc = useTRPC();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        ...trpc.agentById.deleteVideo.mutationOptions(),
+        onSuccess: () => {
+            queryClient.invalidateQueries(trpc.agentById.getVideos.queryOptions({ id }));
+            queryClient.invalidateQueries(trpc.agentById.getOne.queryOptions({ id }));
+            toast.success("Video deleted");
+        },
+        onError: (error) => {
+            toast.error(error.message || "Failed to delete video");
         },
     });
 };

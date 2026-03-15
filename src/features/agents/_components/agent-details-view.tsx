@@ -55,6 +55,8 @@ interface AgentDetailsViewProps {
         chatGrowthPercent: number | null;
         messagesThisMonth: number;
         filesCount: number;
+        imagesCount: number;
+        videosCount: number;
     };
 }
 }
@@ -144,9 +146,24 @@ const AgentDetailsSection = ({data}: AgentDetailsViewProps) => {
                         <span className="text-[11px]">of 100 this month</span>
                     </div>
                     <div className="flex flex-col gap-1 px-6 py-4 border-r ">
-                        <span className="text-xl font-bold text-foreground">{data?.stats.filesCount}</span>
-                        <span className="uppercase tracking-wide font-medium text-[11px]">Files</span>
-                        <span className="text-[11px]">in knowledge base</span>
+                        <span className="text-xl font-bold text-foreground">
+                            {data?.fileUploadEnabled && data?.stats.filesCount}
+                            {data?.imageProcessingEnabled && data?.stats.imagesCount}
+                            {data?.videoProcessingEnabled && data?.stats.videosCount}
+                            {!data?.fileUploadEnabled && !data?.imageProcessingEnabled && !data?.videoProcessingEnabled && 0}
+                        </span>
+                        <span className="uppercase tracking-wide font-medium text-[11px]">
+                            {data?.fileUploadEnabled && 'Files'}
+                            {data?.imageProcessingEnabled && 'Images'}
+                            {data?.videoProcessingEnabled && 'Videos'}
+                            {!data?.fileUploadEnabled && !data?.imageProcessingEnabled && !data?.videoProcessingEnabled && 'Items'}
+                        </span>
+                        <span className="text-[11px]">
+                            {data?.fileUploadEnabled && 'in knowledge base'}
+                            {data?.imageProcessingEnabled && 'processed'}
+                            {data?.videoProcessingEnabled && 'analyzed'}
+                            {!data?.fileUploadEnabled && !data?.imageProcessingEnabled && !data?.videoProcessingEnabled && 'no feature enabled'}
+                        </span>
                     </div>
                     <div className="flex flex-col gap-1 px-6 py-4  ">
                         <span className="text-xl font-bold text-foreground">{data?.temperature}</span>
